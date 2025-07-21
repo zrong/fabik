@@ -1,0 +1,15 @@
+[project]
+name = "fabik"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.2.1",
+    "cryptography>=45.0.5",
+    "fabric>=3.2.2",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "tomli-w>=1.2.0",
+    "typer-slim[standard]>=0.16.0",
+]

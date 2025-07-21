@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+# 项目结构指南
+
+这是一个名为 `fabik` 的 Python 项目：
+
+- 主入口文件是 [main.py](mdc:main.py)，包含程序的入口点
+- 项目配置在 [pyproject.toml](mdc:pyproject.toml) 中定义
+- 项目使用 Python 3.13 或更高版本
+- 当前项目处于初始开发阶段（版本 0.1.0）
