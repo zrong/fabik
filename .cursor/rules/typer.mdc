@@ -1,4 +1,10 @@
-fabik 项目命令行工具（typer）使用规范：
+---
+globs: fabik/cli.py,fabik/cmd.py
+alwaysApply: false
+---
+# fabik 项目命令行工具规范
+
+使用 `typer` 进行命令行功能生成。
 
 1. 命令定义与注册分离：
    - 在 `fabik/cmd.py` 中定义所有命令的回调函数（如 `main_callback`、`main_init`、`conf_callback`、`conf_tpl`），这些函数不直接使用装饰器。
@@ -21,10 +27,47 @@ fabik 项目命令行工具（typer）使用规范：
 
 5. 错误处理与用户提示：
    - 命令函数中遇到错误时，统一使用 `echo_error`、`echo_warning`、`echo_info` 进行信息输出。
+   - 对于普通退出，使用 `raise typer.Exit()` 终止命令执行。
    - 对于致命错误，使用 `raise typer.Abort()` 终止命令执行。
 
 6. rich 扩展：
-   - 项目已安装 rich，推荐在命令行输出中使用 rich 风格（如彩色、面板等）提升用户体验。
+   - 项目已经安装 `rich`，推荐在命令行输出中使用 rich 风格（如彩色、面板等）提升用户体验。
+
+7. 代码风格：
+   - 遵循项目整体 Python 代码风格（见 02-python-style.mdc），命名规范、注释和文档字符串齐全。
+
+8. 复用与扩展：
+   - 新增命令时，优先在 `cmd.py` 中定义回调函数，并在 `cli.py` 中注册。
+   - 子命令组可根据业务需要灵活增删，保持主命令结构清晰。# fabik 项目命令行工具规范
+
+使用 `typer` 进行命令行功能生成。
+
+1. 命令定义与注册分离：
+   - 在 `fabik/cmd.py` 中定义所有命令的回调函数（如 `main_callback`、`main_init`、`conf_callback`、`conf_tpl`），这些函数不直接使用装饰器。
+   - 在 `fabik/cli.py` 中通过 `main.callback()(main_callback)` 或 `main.command('xxx')(xxx_callback)` 的方式注册命令。
+   - 这样做的目的是便于其他模块直接调用命令函数，提升可复用性和可测试性。
+
+2. 子命令分组：
+   - 使用 `typer.Typer` 创建主命令对象（如 `main`），并为子命令分组（如 `sub_conf`、`sub_gen`）分别创建 `Typer` 实例。
+   - 通过 `main.add_typer(sub_conf)` 的方式将子命令组注册到主命令。
+   - 子命令组的注册顺序和分组应与实际业务场景相符。
+
+3. 参数与类型注解：
+   - 命令函数参数使用 `Annotated` 和 `typer.Option`/`typer.Argument` 进行类型注解和参数说明。
+   - 推荐为每个参数添加 `help` 说明，提升命令行可用性。
+   - 支持布尔参数（如 `--force`）、路径参数（如 `cwd`、`conf_file`）等多种类型。
+
+4. 全局状态管理：
+   - 通过 `GlobalState` 类统一管理命令执行过程中的全局变量（如当前目录、环境名、配置文件等）。
+   - 命令回调函数应优先通过 `global_state` 读写全局状态，避免使用全局变量。
+
+5. 错误处理与用户提示：
+   - 命令函数中遇到错误时，统一使用 `echo_error`、`echo_warning`、`echo_info` 进行信息输出。
+   - 对于普通退出，使用 `raise typer.Exit()` 终止命令执行。
+   - 对于致命错误，使用 `raise typer.Abort()` 终止命令执行。
+
+6. rich 扩展：
+   - 项目已经安装 `rich`，推荐在命令行输出中使用 rich 风格（如彩色、面板等）提升用户体验。
 
 7. 代码风格：
    - 遵循项目整体 Python 代码风格（见 02-python-style.mdc），命名规范、注释和文档字符串齐全。

@@ -10,7 +10,7 @@ __all__ = ["main_callback", "main_init", "conf_callback", "conf_tpl"]
 
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import jinja2
 import typer
@@ -36,12 +36,40 @@ class GlobalState:
     force: bool = False
     conf_file: Path | None = None
     fabic_config: FabikConfig | None = None
+    _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
     @property
     def conf_data(self) -> dict[str, Any]:
         if self.fabic_config is None:
             return {}
         return self.fabic_config.root_data or {}
+
+    def register_config_validator(self, validator_func: Callable) -> None:
+        """注册一个配置验证函数，用于验证配置数据。
+        
+        验证函数应接受 FabikConfig 对象作为参数，返回 bool 值表示验证结果。
+        如果验证失败，验证函数应自行处理错误提示。
+        
+        :param validator_func: 验证函数
+        """
+        if callable(validator_func) and validator_func not in self._config_validators:
+            self._config_validators.append(validator_func)
+
+    def _check_conf_data(self) -> bool:
+        """执行所有已注册的配置验证器"""
+        if not self.fabic_config:
+            return False
+            
+        # 运行所有注册的验证器
+        for validator in self._config_validators:
+            try:
+                if not validator(self.fabic_config):
+                    return False
+            except Exception as e:
+                echo_error(f"Config validation error: {str(e)}")
+                raise typer.Abort()
+                
+        return True
 
     def load_conf_data(
         self,
@@ -69,26 +97,6 @@ class GlobalState:
         except Exception as e:
             echo_error(e)
             raise typer.Abort()
-
-    def _check_conf_data(self) -> bool:
-        if not self.fabic_config:
-            return False
-        # keys = (['NAME'], ['PATH', 'tpl_dir'], ['PYE'], ['REPLACE_ENVIRON'])
-        keys = (['NAME'], ['PATH', 'tpl_dir'])
-        for key_list in keys:
-            value = self.fabic_config.getcfg(*key_list)
-            if value is None:
-                echo_error(f'Key "{key_list!s}" not found in config.')
-                raise typer.Abort()
-            if key_list[-1] == 'tpl_dir':
-                p = Path(value)
-                if not p.is_absolute():
-                    echo_error(f"{value!s} is not a absolute path.")
-                    raise typer.Abort()
-                if not p.exists():
-                    echo_error(f"{value!s} is not a exists path.")
-                    raise typer.Abort()
-        return True
 
     def write_config_file(
         self,
@@ -121,7 +129,28 @@ class GlobalState:
             raise typer.Abort()
 
 
+# 默认验证器函数
+def default_config_validator(config: FabikConfig) -> bool:
+    """默认的配置验证逻辑，检查必要的配置项是否存在"""
+    keys = (['NAME'], ['PATH', 'tpl_dir'])
+    for key_list in keys:
+        value = config.getcfg(*key_list)
+        if value is None:
+            echo_error(f'Key "{key_list!s}" not found in config.')
+            raise typer.Abort()
+        if key_list[-1] == 'tpl_dir':
+            p = Path(value)
+            if not p.is_absolute():
+                echo_error(f"{value!s} is not a absolute path.")
+                raise typer.Abort()
+            if not p.exists():
+                echo_error(f"{value!s} is not a exists path.")
+                raise typer.Abort()
+    return True
+
+# 创建全局状态实例并注册默认验证器
 global_state = GlobalState()
+global_state.register_config_validator(default_config_validator)
 
 
 def copytplfile(keyname: str, filename: str, rename: bool = False):
@@ -166,7 +195,7 @@ def copytplfile(keyname: str, filename: str, rename: bool = False):
         echo_info(f"复制 [red]{srcfile}[/] 到 [red]{dstfile}[/]！")
 
 
-def build_deploy_conn(ctx: typer.Context, deploy_class: type["Deploy"]) -> "Deploy":
+def build_deploy_conn(ctx: typer.Context, deploy_class: type["Deploy"]) -> "Deploy":  # noqa: F821
     """创建一个远程部署连接。"""
     try:
         pyape_conf = check_fabik_toml(ctx)
@@ -226,7 +255,7 @@ def main_init(
     full_format: Annotated[
         bool, typer.Option(help="Use full format configuration file.")
     ] = False,
-    rename: NoteRename = True,
+    force: NoteForce = False,
 ):
     """[local] Initialize fabik project, create fabik.toml configuration file in the working directory."""
     work_dir: Path = Path()
@@ -239,6 +268,7 @@ def main_init(
             raise typer.Abort()
     except (PathError, ConfigError):
         pass
+    
     value = jinja2.Template(
         FABIK_TOML_TPL if full_format else FABIK_TOML_SIMPLE_TPL
     ).render(
@@ -246,21 +276,21 @@ def main_init(
         fabik_version=fabik.__version__,
         WORK_DIR=work_dir.absolute().as_posix(),
     )
+    
     toml_file = work_dir.joinpath(FABIK_TOML_FILE)
-    msg = None
+    
     if toml_file.exists():
-        if rename:
-            target_file = toml_file.with_suffix(
-                f".bak_{int(fabik.__now__.timestamp())}"
-            )
-            toml_file.rename(target_file)
-            msg = f"{toml_file!s} renamed to {target_file!s}."
+        if force:
+            # 如果强制覆盖，直接写入文件
+            echo_warning(f"{toml_file!s} already exists. Overwriting it.")
         else:
-            msg = f"{toml_file!s} has already exists. Replace it."
-    if msg:
-        echo_warning(msg)
+            # 如果不强制覆盖，提示文件存在并退出
+            echo_warning(f"{toml_file!s} already exists. Use --force to overwrite it.")
+            raise typer.Exit()
+    
+    # 写入配置文件
     toml_file.write_text(value)
-    echo_info(f"{toml_file} has created.")
+    echo_info(f"{toml_file} has been created.")
 
 
 def conf_callback(force: NoteForce = False):

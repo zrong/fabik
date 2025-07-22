@@ -30,8 +30,8 @@ NAME = '{{ NAME }}'
 # Define project source code folder, default is the absolute path of fabik command run folder.
 work_dir = "{{ WORK_DIR }}"
 
-# Define template folder, default is the absolute path of fabik command run folder + '/tpl'.
-tpl_dir = "{{ WORK_DIR }}/tpl"
+# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
+tpl_dir = "{{ WORK_DIR }}/tpls"
 """
 """ This is a template for fabik main config file. """
 
