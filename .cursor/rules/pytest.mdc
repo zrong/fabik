@@ -2,6 +2,7 @@
 description: This rule file outlines comprehensive best practices for using pytest in Python projects, covering code organization, testing strategies, performance optimization, security measures, and common pitfalls to avoid.
 globs: *.py
 ---
+
 # Pytest Best Practices: A Comprehensive Guide
 
 This document provides a detailed guide to using pytest effectively in Python projects, covering various aspects from code organization to security considerations. It aims to provide actionable guidance for developers to improve their testing practices and build robust applications.

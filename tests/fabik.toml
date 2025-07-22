@@ -1,0 +1,249 @@
+
+###########################################
+# fabik main config file
+#
+# @author:  zrong(https://zengrong.net)
+# @source:  https://github.com/zrong/fabik.git
+# @create:  2025-07-22 15:43:45.904225
+# @version: 0.1.0
+# 
+#
+# Use { { } } to include variable names, which will be replaced with specific values, two curly braces should be continuous, no content should be included, such as no spaces.
+#
+# NAME: project name, defined in config file
+# WORK_DIR: absolute path of project source code folder
+# DEPLOY_DIR: absolute path of deploy folder on server
+###########################################
+
+# use NAME to define your project name.
+NAME = 'fabik'
+
+# Python executable name, default is 'python3', you can use a absolute path to specify a specific python executable.
+PYE = 'python3'
+
+# DEPLOY_DIR is the absolute path of deploy folder on server
+DEPLOY_DIR = '/srv/app/fabik'
+
+# Allow to replace environment variables.
+# The following { { } } variables will be replaced with environment variables. Two curly braces should be continuous, no content should be included, such as no spaces.
+# If the value contains the following keys, it will be replaced with the value of the environment variable.
+#
+# For example:
+# 1. The project name is 'fabik' (default value), when it is replaced with environment variable, it will be converted to uppercase.
+# 2. The environment variable contains FABIK_LOCAL_ADMIN_NAME
+# 3. When using --env local to generate the config file, it will replace the value of  with the value of the environment variable FABIK_LOCAL_ADMIN_NAME
+#
+# ADMIN_NAME
+# ADMIN_PASSWORD
+# SECRET_KEY
+#
+# You can add environment variables yourself, as long as the variable name in the config file is the same.
+REPLACE_ENVIRON = [
+    'ADMIN_NAME',
+    'ADMIN_PASSWORD',
+]
+
+# Define all PATH related variables here.
+[PATH]
+# Define project source code folder, default is the absolute path of fabik command run folder.
+work_dir = "/Users/zrong/storage/zrong/fabik"
+
+# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
+tpl_dir = "/Users/zrong/storage/zrong/fabik/tpls"
+
+
+# 用于 deploy 上传时排除本地文件
+RSYNC_EXCLUDE = [
+    '.DS_Store',
+    '*.pyc',
+    'fab*',
+    '__pycache__',
+    '.pytest_cache',
+    '.vscode',
+    '*.code-workspace',
+    '*.swp',
+    '*.iml',
+    'node_modules',
+    '.git',
+    '.pyenv',
+    'venv',
+    '.gitignore',
+    'wiki',
+    'output',
+    'tests',
+    'logs',
+    'wechat_sdk',
+    'flask_sqlalchemy',
+    '*.jinja2',
+    '*.dot',
+    '*.json',
+    '*.toml',
+    '*.sqlite',
+    '*.db',
+    'config.*',
+    'uwsgi.*',
+    '*.service',
+    'gunicorn.*',
+]
+
+# .env 基本配置文件内容，保存 FLASK 运行需要的配置，以及 flask.config 中的配置
+['.env']
+FLASK_APP = 'wsgi:{{NAME}}_app'
+FLASK_ENV = 'production'
+FLASK_RUN_PORT = 5000
+SQLALCHEMY_WARN_20 = 1
+
+# gunicorn.conf.py 的基本配置文件内容，可在 env 中进行覆盖
+['gunicorn.conf.py']
+wsgi_app = 'wsgi:{{NAME}}_app'
+proc_name = '{{NAME}}'
+bind = '127.0.0.1:5001'
+umask = 0
+daemon = true
+capture_output = true
+
+
+# uwsgi.ini 基本配置文件内容
+['uwsgi.ini']
+callable = '{{NAME}}_app'
+processes = 2
+threads = 1
+venv = '%dvenv'
+lazy_apps = true
+# 是否切换到后台，本地调试的时候可以设为 False，直接查看控制台输出
+daemonize = true
+# socket 和 http 参数二选一，如果同时选择，以 socket 参数为准
+# 端口转发可能引发 nginx 499 问题（推测是端口转发 limit 没有打开） 
+# 改为使用 sock 文件 （同样需要打开 limit 限制）
+socket = '%d%n.sock'
+# http_socket = '127.0.0.1:5002'
+# http = '127.0.0.1:5002'
+# Stat Server
+stats = '%d%nstats.sock'
+
+
+['config.toml']
+# 用于信任的 MJST TOKEN，处于这个列表中的 MJST 不会因为过期被拒绝。
+TRUSTED_TOKENS = []
+# 用于内部加密，Flask 和 Fastapi 均使用这个值
+SECRET_KEY = '{{SECRET_KEY}}'
+
+# flask 框架的配置
+# ['config.toml'.FLASK]
+
+# fastapi 框架的专用配置
+# ['config.toml'.FASTAPI]
+
+['config.toml'.SQLALCHEMY]
+# 单数据库地址配置， {{WORK_DIR}} 被替换为 pyape 运行文件夹的绝对路径
+URI = 'sqlite:///{{WORK_DIR}}/pyape.sqlite'
+future = false
+
+# 单数据库配置数据库引擎参数
+['config.toml'.SQLALCHEMY.ENGINE_OPTIONS]
+pool_timeout = 10
+pool_recycle = 3600
+
+# 多数据库配置，与单个数据库地址配置方式二选一
+# ['config.toml'.SQLALCHEMY.URI]
+# test1000 = 'mysql+pymysql://test:123456@127.0.0.1/test1000'
+# test2000 = 'mysql+pymysql://test:123456@127.0.0.1/test2000'
+
+# 多数据库配置数据库引擎参数
+# ['config.toml'.SQLALCHEMY.ENGINE_OPTIONS.test1000]
+# pool_timeout = 10
+# pool_recycle = 3600
+
+# 单个 REDIS 地址
+# ['config.toml'.REDIS]
+# URI = 'redis://localhost:6379/0'
+
+# 多 REDIS 配置，与单个 REDIS 地址配置方式二选一
+# ['config.toml'.REDIS.URI]
+# REDIS 使用 bind_key_redis，REDIS_URI 的 bind_key_redis 为 None
+# 对 REDIS 的使用遵循了最大利用率+最大灵活性原则，可能出现：
+# 1. 单个 Regional 使用单个 REDIS 实例（少量情况）
+# 2. 多个 Regional 使用同一个 REDIS 实例，分 DB 存储（多数情况）
+# 3. 多个 Regional 使用同一个 REDIS 实例和同一个 DB（测试情况）
+# 4. 单个 Regional 使用多个 REDIS 实例（暂未如此部署）
+# db0 = 'redis://localhost:6379/0'
+# db1 = 'redis://localhost:6379/1'
+
+# 设置默认的 WEBHOOK 值，用于 pyape.util.warning
+# ['config.toml'.WEBHOOK.DEFAULT]
+# APP_NAME = 'FEISHU'
+# BOT_NAME = 'OPT'
+# IS_ASYNC = false
+
+# 配置系统使用的根帐号和密码
+# ['config.toml'.ADMIN]
+# name = '{{ADMIN_NAME}}'
+# password = '{{ADMIN_PASSWORD}}'
+
+
+
+#==============================================
+# The following configuration overrides the above configuration.
+# The override is performed in the form of "supplement", the same name key will be overwritten, and the different name key will be retained.
+#
+# ENV represents the environment, when you want to deploy to different environments, you can use these different environments
+# to generate configuration files for different environments, the key name after ENV is the environment name.
+#
+# For example, [ENV.local.path] is used to replace the path.work_dir or path.tpl_dir to specific value in the local environment.
+#==============================================
+
+
+#--------------------- local 环境的配置
+[ENV.local.'.env']
+FLASK_ENV = 'development'
+FLASK_RUN_PORT = 5001
+
+[ENV.local.'uwsgi.ini']
+socket = '127.0.0.1:5000'
+daemonize = false
+
+[ENV.local.'config.toml'.PATH]
+STATIC_FOLDER = 'dist'
+STATIC_URL_PATH = '/static'
+TEMPLATE_FOLDER = 'dist/template'
+
+[[ENV.local.'config.toml'.PATH.ROUTER]]
+name = 'cf'
+module = 'view.cf'
+endpoint = '/cf'
+
+[[ENV.local.'config.toml'.REGIONALS]]
+name = '测试服1000'
+index = 1
+# 服务端依赖其作为校验，与 regional 的值相同
+r = 1000
+
+[[ENV.local.'config.toml'.REGIONALS]]
+name = '测试服2000'
+index = 2
+# 服务端依赖其作为校验，与 regional 的值相同
+r = 2000
+
+
+#--------------------- prod 环境的配置
+# 不要写成 ENV.prod.deploy_dir = .... 
+# 解析器的 bug 会导致将 ENV.prod.deploy_dir 增加到 [[ENV.local.'config.toml'.REGIONALS]] 内部
+[ENV.prod]
+DEPLOY_DIR = '/srv/app/{{NAME}}_prod'
+
+[ENV.prod.'uwsgi.ini']
+processes = 4
+
+[ENV.prod.'config.toml'.SQLALCHEMY]
+URI = 'sqlite:///{{DEPLOY_DIR}}/pyape.sqlite'
+
+[ENV.prod.'gunicorn.conf.py']
+bind = 'unix:{{DEPLOY_DIR}}/gunicorn.sock'
+pidfile = '{{DEPLOY_DIR}}/gunicorn.pid'
+accesslog = '{{DEPLOY_DIR}}/logs/access.log'
+errorlog = '{{DEPLOY_DIR}}/logs/error.log'
+
+[ENV.prod.'gunicorn_nginx.conf']
+# gunicorn_nginx.conf 中配置的 bind 必须与 gunicorn.conf.py 中完全相同
+bind = 'unix:{{DEPLOY_DIR}}/gunicorn.sock'
+location = '/api'

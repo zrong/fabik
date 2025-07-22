@@ -16,6 +16,7 @@ import shutil
 
 import tomllib
 import tomli_w
+import json
 
 import fabik
 from fabik.error import (
@@ -230,28 +231,22 @@ class ConfigWriter:
     """写入配置文件。"""
 
     tpl_name: str
-    tpl_filename: str
     dst_file: Path
     replace_obj: dict
-    tpl_dir: Path
-    tpl_env: jinja2.Environment
 
     def __init__(
         self,
         tpl_name: str,
         dst_file: Path,
         replace_obj: dict,
-        tpl_dir: Path | None = None,
     ) -> None:
         """初始化
         :param tplname: 模版名称，不含扩展名
-        :param dstname: 目测名称
+        :param dstname: 目标名称
         """
         self.tpl_name = tpl_name
-        self.tpl_filename = tpl_name + ".jinja2"
         self.dst_file = dst_file
         self.replace_obj = replace_obj
-        self.tpl_env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.tpl_dir))
 
     def _fill_meta_data(self, config_data: dict) -> dict:
         """向配置填充 meta 信息。"""
@@ -259,18 +254,30 @@ class ConfigWriter:
         config_data["fabik_version"] = f"fabik v{fabik.__version__}"
         return config_data
 
+    def _write_key_value(self):
+        """输出 key = value 形式的文件"""
+        txt = "\n".join([f"{k} = {v}" for k, v in self.replace_obj.items()])
+        self.dst_file.write_text(txt)
+        echo_info(f"文件 {self.dst_file.as_posix()} 创建成功。")
+
+    def _write_file_by_type(self):
+        """根据后缀决定如何处理渲染。"""
+        if self.tpl_name.endswith(".toml"):
+            self.dst_file.write_text(tomli_w.dumps(self.replace_obj))
+        elif self.tpl_name == ".env":
+            self._write_key_value()
+        else:
+            # 对于不支持的文件类型，使用 json 格式渲染
+            self.dst_file.write_text(
+                json.dumps(self.replace_obj, ensure_ascii=False, indent=4)
+            )
+
     def write_file(self, force: bool = True):
         """写入配置文件
         :param force: 若 force 为 False，则仅当文件不存在的时候才写入。
         """
-
-        def __render():
-            tpl = self.tpl_env.get_template(self.tpl_filename)
-            self.dst_file.write_text(tpl.render(self.replace_obj), encoding="utf-8")
-            echo_info(f"文件【{self.dst_file.as_posix()}】创建成功。")
-
         if not self.dst_file.exists():
-            __render()
+            self._write_file_by_type()
         elif force:
             bak_file = self.dst_file.parent.joinpath(
                 f"{self.dst_file.name}.bak_{int(fabik.__now__.timestamp())}"
@@ -278,13 +285,54 @@ class ConfigWriter:
             # 强制覆盖的时候备份原始文件
             shutil.copyfile(self.dst_file, bak_file)
             echo_warning(
-                f"备份文件【{self.dst_file.as_posix()}】到【{bak_file.as_posix()}】。"
+                f"备份文件 {self.dst_file.as_posix()} 到 {bak_file.as_posix()}。"
             )
-            __render()
+            self._write_file_by_type()
         else:
             echo_error(
-                f"文件【{self.dst_file.as_posix()}】已存在。可使用 --force 参数强制覆盖。"
+                f"文件 {self.dst_file.as_posix()} 已存在。可使用 --force 强制覆盖。"
             )
+
+
+class TplWriter(ConfigWriter):
+    """基于模板文件的配置写入器"""
+
+    tpl_filename: str
+    tpl_dir: Path
+    tpl_env: jinja2.Environment
+
+    def __init__(
+        self,
+        tpl_name: str,
+        dst_file: Path,
+        replace_obj: dict[str, Any],
+        tpl_dir: Path,
+    ) -> None:
+        """初始化
+        :param tplname: 模版名称，不含扩展名
+        :param dstname: 目标名称
+        :param tpl_dir: 模板文件目录
+        """
+        super().__init__(tpl_name, dst_file, replace_obj)
+
+        # 自动增加 jinja2 后缀
+        self.tpl_filename = (
+            tpl_name if tpl_name.endswith(".jinja2") else f"{tpl_name}.jinja2"
+        )
+        self.tpl_dir = tpl_dir
+        self.tpl_env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.tpl_dir))
+
+    def _write_by_jinja(self):
+        """能找到模板文件，调用 jinja2 直接渲染。"""
+        tpl = self.tpl_env.get_template(self.tpl_filename)
+        self.dst_file.write_text(tpl.render(self.replace_obj))
+        echo_info(
+            f"从模板 {self.tpl_filename} 创建文件{self.dst_file.as_posix()} 成功。"
+        )
+
+    def _write_file_by_type(self):
+        """重写父类的方法，仅支持 jinja2 模版渲染。"""
+        self._write_by_jinja()
 
 
 class ConfigReplacer:
@@ -295,7 +343,7 @@ class ConfigReplacer:
     fabik_name: str
     fabik_conf: dict
     work_dir: Path
-    tpl_dir: Path
+    tpl_dir: Path | None = None
     deploy_dir: Path | None = None
     replace_environ: list[str] | None = None
     writer: ConfigWriter | None = None
@@ -304,7 +352,7 @@ class ConfigReplacer:
         self,
         fabik_conf: dict[str, Any],
         work_dir: Path,
-        tpl_dir: Path,
+        tpl_dir: Path | None = None,
         env_name: str | None = None,
     ):
         """初始化"""
@@ -324,28 +372,25 @@ class ConfigReplacer:
                 raise EnvError(err_type=TypeError(), err_msg="envs must be a dict.")
             if self.env_name not in self.envs:
                 raise EnvError(
-                    err_type=ValueError(),
-                    err_msg=f"env must be in follow values: \n\n{self.envs.keys()}",
+                    err_type=KeyError(),
+                    err_msg=f"env_name {self.env_name} not found in envs.",
                 )
 
     def get_env_value(self, key: str | None = None, default_value: Any = None) -> Any:
-        if self.env_name is None:
-            return None
-        if isinstance(self.envs, dict):
-            value = self.envs.get(self.env_name)
-            if value and key is not None:
-                return value.get(key, default_value)
-            return value
-        return None
+        """获取环境变量中的值。"""
+        if self.env_name is None or self.envs is None:
+            return default_value
+        env_obj = self.envs.get(self.env_name, None)
+        if env_obj is None:
+            return default_value
+        if key is None:
+            return env_obj
+        return env_obj.get(key, default_value)
 
     def _set_replace_keys(self):
-        """NAME 和 DEPLOY_DIR 的值允许作为替换值使用，但这两个值中也可能包含替换值，因此需要先固化下来"""
-        self.fabik_name = self.get_tpl_value("NAME", merge=False)
-        # 获取被 env 合并后的值
-        deploy_dir = self.get_tpl_value("DEPLOY_DIR", merge=False)
-        # 如果包含 {NAME} 或者环境变量的替换值，需要替换
-        deploy_dir = self.replace(deploy_dir)
-        self.deploy_dir = Path(deploy_dir)
+        """设置替换用的 key"""
+        self.fabik_name = self.fabik_conf.get("NAME", "fabik")
+        self.deploy_dir = Path(self.fabik_conf.get("DEPLOY_DIR", "/srv/app"))
         if not self.deploy_dir.is_absolute():
             raise FabikError(
                 err_type=ValueError(),
@@ -433,7 +478,7 @@ replace_obj: {replace_obj}.""",
         tpl_name: str,
         force=True,
         target_postfix: str = "",
-        immediately: bool = True,
+        immediately: bool = False,
     ) -> tuple[Path, Path]:
         """写入配置文件"""
         replace_obj = self.get_replace_obj(tpl_name)
@@ -441,7 +486,14 @@ replace_obj: {replace_obj}.""",
         target = self.work_dir.joinpath(tpl_name)
         # 加入后缀的文件路径，大部分情况下与 target 相同
         final_target = self.work_dir.joinpath(f"{tpl_name}{target_postfix}")
-        self.writer = ConfigWriter(tpl_name, final_target, replace_obj, self.tpl_dir)
+
+        # 基于是否提供了 tpl_dir 决定使用哪种写入器
+        self.writer = (
+            ConfigWriter(tpl_name, final_target, replace_obj)
+            if self.tpl_dir is None
+            else TplWriter(tpl_name, final_target, replace_obj, self.tpl_dir)
+        )
+
         if immediately:
             self.writer.write_file(force)
         return target, final_target

@@ -17,7 +17,7 @@ import typer
 from typing import Annotated
 
 import fabik
-from fabik.conf import ConfigReplacer, FabikConfig
+from fabik.conf import ConfigReplacer, FabikConfig, TplWriter
 from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
 from fabric.connection import Connection
 from fabik.error import (
@@ -46,10 +46,10 @@ class GlobalState:
 
     def register_config_validator(self, validator_func: Callable) -> None:
         """注册一个配置验证函数，用于验证配置数据。
-        
+
         验证函数应接受 FabikConfig 对象作为参数，返回 bool 值表示验证结果。
         如果验证失败，验证函数应自行处理错误提示。
-        
+
         :param validator_func: 验证函数
         """
         if callable(validator_func) and validator_func not in self._config_validators:
@@ -59,7 +59,7 @@ class GlobalState:
         """执行所有已注册的配置验证器"""
         if not self.fabic_config:
             return False
-            
+
         # 运行所有注册的验证器
         for validator in self._config_validators:
             try:
@@ -68,7 +68,7 @@ class GlobalState:
             except Exception as e:
                 echo_error(f"Config validation error: {str(e)}")
                 raise typer.Abort()
-                
+
         return True
 
     def load_conf_data(
@@ -100,9 +100,9 @@ class GlobalState:
 
     def write_config_file(
         self,
-        tpl_dir: Path,
         tpl_name: str,
         /,
+        tpl_dir: Path | None = None,
         target_postfix: str = "",
     ) -> None:
         """写入配置文件
@@ -112,15 +112,17 @@ class GlobalState:
         try:
             replacer = ConfigReplacer(
                 global_state.conf_data,
-                work_dir=global_state.cwd, # type: ignore
+                work_dir=global_state.cwd,  # type: ignore
                 tpl_dir=tpl_dir,
                 env_name=global_state.env,
             )
-            replacer.set_writer(tpl_name, global_state.force, target_postfix)
-            if not global_state.force and replacer.writer.exists_before_write:
-                echo_warning(
-                    f"文件 {replacer.writer.dst_file.as_uri()} 已存在。可使用 --force 参数强制覆盖。",
-                )
+            target, final_target = replacer.set_writer(
+                tpl_name, global_state.force, target_postfix
+            )
+
+            # 写入文件
+            if replacer.writer:
+                replacer.writer.write_file(global_state.force)
         except FabikError as e:
             echo_error(e.err_msg)
             raise typer.Abort()
@@ -129,28 +131,45 @@ class GlobalState:
             raise typer.Abort()
 
 
-# 默认验证器函数
-def default_config_validator(config: FabikConfig) -> bool:
-    """默认的配置验证逻辑，检查必要的配置项是否存在"""
-    keys = (['NAME'], ['PATH', 'tpl_dir'])
-    for key_list in keys:
-        value = config.getcfg(*key_list)
-        if value is None:
-            echo_error(f'Key "{key_list!s}" not found in config.')
-            raise typer.Abort()
-        if key_list[-1] == 'tpl_dir':
-            p = Path(value)
-            if not p.is_absolute():
-                echo_error(f"{value!s} is not a absolute path.")
-                raise typer.Abort()
-            if not p.exists():
-                echo_error(f"{value!s} is not a exists path.")
-                raise typer.Abort()
+def check_none(value: Any, key_list: list[str]) -> Any:
+    if value is None:
+        echo_error(f'Key "{key_list!s}" not found in config.')
+        raise typer.Abort()
+    return value
+
+
+def check_path_exists(p: Path) -> bool:
+    if not p.is_absolute():
+        echo_error(f"{p!s} is not a absolute path.")
+        raise typer.Abort()
+    if not p.exists():
+        echo_error(f"{p!s} is not a exists path.")
+        raise typer.Abort()
     return True
+
+
+# 默认验证器函数
+def config_validator_name_workdir(config: FabikConfig) -> bool:
+    """检查 NAME 和 work_dir 是否存在"""
+    keys = (["NAME"], ["PATH", "work_dir"])
+    for key_list in keys:
+        value = check_none(config.getcfg(*key_list), key_list)
+        if key_list[-1] == "work_dir":
+            check_path_exists(Path(value))
+    return True
+
+
+def config_validator_tpldir(config: FabikConfig) -> bool:
+    """默认的配置验证逻辑，检查必要的配置项是否存在"""
+    key_list = ["PATH", "tpl_dir"]
+    value = check_none(config.getcfg(*key_list), key_list)
+    check_path_exists(Path(value))
+    return True
+
 
 # 创建全局状态实例并注册默认验证器
 global_state = GlobalState()
-global_state.register_config_validator(default_config_validator)
+global_state.register_config_validator(config_validator_name_workdir)
 
 
 def copytplfile(keyname: str, filename: str, rename: bool = False):
@@ -235,6 +254,9 @@ NoteRename = Annotated[bool, typer.Option(help="If the target file exists, renam
 NoteForce = Annotated[
     bool, typer.Option("--force", "-f", help="Force to overwrite the existing file.")
 ]
+NoteEnvPostfix = Annotated[
+    bool, typer.Option(help="在生成的配置文件名称末尾加上环境名称后缀。")
+]
 
 
 def main_callback(
@@ -247,7 +269,6 @@ def main_callback(
     global_state.conf_file = FabikConfig.gen_fabik_toml(
         work_dir=global_state.cwd, conf_file=conf_file
     )
-    global_state.load_conf_data(check=True)
     echo_info(f"main_callback {global_state=}", panel_title="LOG: main_callback")
 
 
@@ -268,18 +289,17 @@ def main_init(
             raise typer.Abort()
     except (PathError, ConfigError):
         pass
-    
+
     value = jinja2.Template(
         FABIK_TOML_TPL if full_format else FABIK_TOML_SIMPLE_TPL
     ).render(
         create_time=f"{fabik.__now__!s}",
         fabik_version=fabik.__version__,
-        NAME=fabik.__name__,
         WORK_DIR=work_dir.absolute().as_posix(),
     )
-    
+
     toml_file = work_dir.joinpath(FABIK_TOML_FILE)
-    
+
     if toml_file.exists():
         if force:
             # 如果强制覆盖，直接写入文件
@@ -288,13 +308,15 @@ def main_init(
             # 如果不强制覆盖，提示文件存在并退出
             echo_warning(f"{toml_file!s} already exists. Use --force to overwrite it.")
             raise typer.Exit()
-    
+
     # 写入配置文件
     toml_file.write_text(value)
     echo_info(f"{toml_file} has been created.")
 
 
-def conf_callback(force: NoteForce = False):
+def conf_callback(
+    force: NoteForce = False,
+):
     global_state.force = force
 
 
@@ -305,10 +327,14 @@ def conf_tpl(
             help="Provide configuration file names based on the tpl directory."
         ),
     ],
+    env_postfix: NoteEnvPostfix = False,
 ):
     """[local] Initialize configuration file content based on the template files in the local tpl directory."""
-    tpl_dir: Path = Path(global_state.fabic_config.getcfg("PATH", "tpl_dir")) # type: ignore
     files: list[Path] = []
+    # 需要检查 tpl_dir 是否存在
+    global_state.register_config_validator(config_validator_tpldir)
+    global_state.load_conf_data(check=True)
+    tpl_dir = Path(global_state.fabic_config.getcfg("PATH", "tpl_dir"))  # type: ignore
     for n in file:
         f = tpl_dir.joinpath(n)
         files.append(f)
@@ -317,4 +343,23 @@ def conf_tpl(
             raise typer.Abort()
 
     for f in files:
-        global_state.write_config_file(tpl_dir, f.name)
+        global_state.write_config_file(
+            f.name,
+            tpl_dir=tpl_dir,
+            target_postfix=f".{global_state.env}" if env_postfix else "",
+        )
+
+
+def conf_make(
+    file: Annotated[
+        list[str],
+        typer.Argument(help="Make a configuration file in fabik.toml."),
+    ],
+    env_postfix: NoteEnvPostfix = False,
+):
+    """[local] Initialize configuration file content based on the fabik.toml, no template file is used."""
+    global_state.load_conf_data(check=True)
+    for f in file:
+        global_state.write_config_file(
+            f, target_postfix=f".{global_state.env}" if env_postfix else ""
+        )
