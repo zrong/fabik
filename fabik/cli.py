@@ -7,7 +7,7 @@ fabik command line interface implementation
 """
 
 import typer
-from fabik.cmd import main_callback, main_init, conf_callback, conf_tpl
+from fabik.cmd import main_callback, main_init, conf_callback, conf_tpl, conf_make
 
 main: typer.Typer = typer.Typer()
 
@@ -28,4 +28,5 @@ main.command('init')(main_init)
 
 sub_conf.callback()(conf_callback)
 sub_conf.command('tpl')(conf_tpl)
+sub_conf.command('make')(conf_make)
     

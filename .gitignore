@@ -11,6 +11,6 @@ wheels/
 
 
 # fabik project 
-fabik.toml
-fabik.bak*
+/fabik.toml
+/fabik.bak*
 tpls/
