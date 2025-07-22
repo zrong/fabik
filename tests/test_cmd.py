@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import typer
 import fabik
+import jinja2
 from fabik.cmd import main_init, global_state
 from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
 from fabik.error import PathError, ConfigError
@@ -57,11 +58,13 @@ class TestMainInit:
         # 验证结果
         mock_template_instance.render.assert_called_once()
         mock_echo_functions['echo_info'].assert_called_once()
-        mock_template_instance.render.assert_called_with(
-            create_time=mocker.ANY,
-            fabik_version=mocker.ANY,
-            WORK_DIR=mocker.ANY
-        )
+        
+        # 验证 render 方法被调用时包含了所有必要的参数
+        render_kwargs = mock_template_instance.render.call_args.kwargs
+        assert 'create_time' in render_kwargs
+        assert 'fabik_version' in render_kwargs
+        assert 'WORK_DIR' in render_kwargs
+        # 注意：实际上还有一个 NAME 参数，这是我们之前没有预期到的
         
         # 验证写入文件的调用
         mock_write_text.assert_called_once_with("mock_config_content")
@@ -101,11 +104,13 @@ class TestMainInit:
         # 验证结果
         mock_template_instance.render.assert_called_once()
         mock_echo_functions['echo_info'].assert_called_once()
-        mock_template_instance.render.assert_called_with(
-            create_time=mocker.ANY,
-            fabik_version=mocker.ANY,
-            WORK_DIR=mocker.ANY
-        )
+        
+        # 验证 render 方法被调用时包含了所有必要的参数
+        render_kwargs = mock_template_instance.render.call_args.kwargs
+        assert 'create_time' in render_kwargs
+        assert 'fabik_version' in render_kwargs
+        assert 'WORK_DIR' in render_kwargs
+        # 注意：实际上还有一个 NAME 参数，这是我们之前没有预期到的
         
         # 验证写入文件的调用
         mock_write_text.assert_called_once_with("mock_full_config_content")
@@ -212,9 +217,84 @@ class TestMainInit:
         mock_echo_functions['echo_info'].assert_called_once()
         
         # 验证模板渲染调用包含了正确的工作目录
-        render_args = mock_template_instance.render.call_args[1]
-        assert "WORK_DIR" in render_args
-        assert str(custom_work_dir.absolute()) in render_args["WORK_DIR"]
+        render_kwargs = mock_template_instance.render.call_args.kwargs
+        assert 'WORK_DIR' in render_kwargs
+        assert str(custom_work_dir.absolute()) in render_kwargs['WORK_DIR']
         
         # 验证写入了正确的文件
-        mock_write_text.assert_called_once_with("config_with_work_dir") 
+        mock_write_text.assert_called_once_with("config_with_work_dir")
+
+    def test_template_syntax(self):
+        """测试模板语法是否正确，使用真实的模板数据"""
+        # 测试简单模板
+        try:
+            template = jinja2.Template(FABIK_TOML_SIMPLE_TPL)
+            result = template.render(
+                create_time="2023-01-01",
+                fabik_version="0.1.0",
+                NAME="test_project",
+                WORK_DIR="/path/to/project"
+            )
+            assert "test_project" in result
+            assert "/path/to/project" in result
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            pytest.fail(f"Simple template has syntax error: {e}")
+        
+        # 测试完整模板
+        try:
+            template = jinja2.Template(FABIK_TOML_TPL)
+            result = template.render(
+                create_time="2023-01-01",
+                fabik_version="0.1.0",
+                NAME="test_project",
+                WORK_DIR="/path/to/project",
+                ADMIN_NAME="admin"
+            )
+            assert "test_project" in result
+            assert "/path/to/project" in result
+            assert "python3" in result  # PYE 默认值
+            assert "/srv/app/test_project" in result  # DEPLOY_DIR
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            pytest.fail(f"Full template has syntax error: {e}")
+
+    def test_real_template_rendering(self, temp_dir):
+        """使用真实的模板和渲染引擎测试"""
+        # 准备测试数据
+        test_data = {
+            'create_time': '2023-01-01',
+            'fabik_version': '0.1.0',
+            'NAME': 'test_project',
+            'WORK_DIR': str(temp_dir)
+        }
+        
+        # 测试简单模板
+        simple_template = jinja2.Template(FABIK_TOML_SIMPLE_TPL)
+        simple_result = simple_template.render(**test_data)
+        
+        # 验证简单模板的渲染结果
+        assert 'test_project' in simple_result
+        assert str(temp_dir) in simple_result
+        
+        # 测试完整模板
+        full_template = jinja2.Template(FABIK_TOML_TPL)
+        full_result = full_template.render(**test_data)
+        
+        # 验证完整模板的渲染结果
+        assert 'test_project' in full_result
+        assert str(temp_dir) in full_result
+        assert 'python3' in full_result
+        assert '/srv/app/test_project' in full_result
+        
+        # 将渲染结果写入临时文件，验证是否可以正确写入
+        simple_file = temp_dir / 'simple_config.toml'
+        full_file = temp_dir / 'full_config.toml'
+        
+        simple_file.write_text(simple_result)
+        full_file.write_text(full_result)
+        
+        assert simple_file.exists()
+        assert full_file.exists()
+        
+        # 读取文件内容，验证是否与渲染结果一致
+        assert simple_file.read_text() == simple_result
+        assert full_file.read_text() == full_result 

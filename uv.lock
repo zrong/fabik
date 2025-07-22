@@ -203,7 +203,6 @@ requires-dist = [
     { name = "tomli-w", specifier = ">=1.2.0" },
     { name = "typer-slim", extras = ["standard"], specifier = ">=0.16.0" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [

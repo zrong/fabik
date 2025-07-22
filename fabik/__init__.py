@@ -5,6 +5,7 @@ fabik is a library for Python command line application.
 
 __version__ = '0.1.0'
 __author__ = 'zrong'
+__name__ = 'fabik'
 __email__ = 'zrongzrong@gmail.com'
 __url__ = 'https://github.com/zrong/fabik'
 __license__ = 'MIT'

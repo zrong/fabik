@@ -274,6 +274,7 @@ def main_init(
     ).render(
         create_time=f"{fabik.__now__!s}",
         fabik_version=fabik.__version__,
+        NAME=fabik.__name__,
         WORK_DIR=work_dir.absolute().as_posix(),
     )
     

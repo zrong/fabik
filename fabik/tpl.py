@@ -46,7 +46,7 @@ FABIK_TOML_TPL: str = """
 # @version: {{ fabik_version }}
 # 
 #
-# use {{}} to include variable names, which will be replaced with specific values
+# Use { { } } to include variable names, which will be replaced with specific values, two curly braces should be continuous, no content should be included, such as no spaces.
 #
 # NAME: project name, defined in config file
 # WORK_DIR: absolute path of project source code folder
@@ -60,10 +60,10 @@ NAME = '{{ NAME }}'
 PYE = 'python3'
 
 # DEPLOY_DIR is the absolute path of deploy folder on server
-DEPLOY_DIR = '/srv/app{{ NAME }}'
+DEPLOY_DIR = '/srv/app/{{ NAME }}'
 
 # Allow to replace environment variables.
-# The following {{}} variables will be replaced with environment variables.
+# The following { { } } variables will be replaced with environment variables. Two curly braces should be continuous, no content should be included, such as no spaces.
 # If the value contains the following keys, it will be replaced with the value of the environment variable.
 #
 # For example:
@@ -86,8 +86,8 @@ REPLACE_ENVIRON = [
 # Define project source code folder, default is the absolute path of fabik command run folder.
 work_dir = "{{ WORK_DIR }}"
 
-# Define template folder, default is the absolute path of fabik command run folder + '/tpl'.
-tpl_dir = "{{ WORK_DIR }}/tpl"
+# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
+tpl_dir = "{{ WORK_DIR }}/tpls"
 
 
 #==============================================
@@ -101,7 +101,7 @@ tpl_dir = "{{ WORK_DIR }}/tpl"
 #==============================================
 [ENV.local.PATH]
 work_dir = "/Users/zrong/tool/my_new_tool"
-tpl_dir = "/Users/zrong/tool/my_new_tool/tpl"
+tpl_dir = "/Users/zrong/tool/my_new_tool/tpls"
 
 """
 """ This is a template for fabik main config file. """
