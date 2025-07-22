@@ -9,7 +9,6 @@ fabik.error
 from typing import Any
 from rich.console import Console
 from rich.style import Style
-from rich.pretty import Pretty
 from rich.panel import Panel
 
 console: Console = Console(highlight=True)

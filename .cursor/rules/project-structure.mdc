@@ -1,0 +1,20 @@
+---
+alwaysApply: true
+---
+- 永远使用 Python 3.13
+- 永远使用 uv 安装和管理依赖
+
+# 项目结构指南
+
+这是一个名为 `fabik` 的 Python 项目：
+
+- 主入口文件是 @fabik/__main.py，其中使用代码定义入口点。
+- 项目配置在 @pyproject.toml 中定义
+- 当前项目处于初始开发阶段（版本 0.1.0）
+
+# 项目支持工具
+
+- 使用 uv 代替 pip。
+- 使用 `uv add` 添加 python 模块和库。
+- 使用 `uv run script.py` 来运行一个 python 脚本。
+- 不要创建 `requirements.txt`。永远都使用 `uv add` 来添加 python 模块和库。
