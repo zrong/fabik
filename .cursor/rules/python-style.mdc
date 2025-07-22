@@ -9,12 +9,13 @@ This document outlines comprehensive best practices and coding standards for Pyt
 
 ## 1. Code Organization and Structure
 
-* 使用 4 个空格进行缩进，不使用制表符
+* 永远使用 python 3.13 的最新标准。
+* 使用 4 个空格进行缩进，不使用制表符。
 * 遵循 PEP 8 命名约定：
    - `lower_case_with_underscores` 用于函数和变量名
    - `CapitalizedWords` 用于类名
    - `UPPER_CASE_WITH_UNDERSCORES` 用于常量
-* 每行代码不超过 88 个字符
+* 每行代码不超过 88 个字符。
 * 使用类型注解提高代码可读性
 * 为所有公共函数、方法和类编写文档字符串
 

@@ -1,20 +1,25 @@
 ---
+description: 项目架构和依赖
 alwaysApply: true
 ---
-- 永远使用 Python 3.13
+- 永远使用 Python 3.13，请遵循最新的语言标准。
 - 永远使用 uv 安装和管理依赖
 
 # 项目结构指南
 
 这是一个名为 `fabik` 的 Python 项目：
 
-- 主入口文件是 @fabik/__main.py，其中使用代码定义入口点。
+- 主入口文件是 @fabik/__main__.py，其中使用代码定义入口点。
 - 项目配置在 @pyproject.toml 中定义
-- 当前项目处于初始开发阶段（版本 0.1.0）
 
 # 项目支持工具
 
-- 使用 uv 代替 pip。
-- 使用 `uv add` 添加 python 模块和库。
+- 使用 `uv` 代替 `pip` 作为包管理工具。
+- 使用 `uv` 作为包发布工具。
 - 使用 `uv run script.py` 来运行一个 python 脚本。
-- 不要创建 `requirements.txt`。永远都使用 `uv add` 来添加 python 模块和库。
+
+# 项目依赖管理
+
+- 不要创建 `requirements.txt`。
+- 对于项目正常使用过程中的依赖项，总是使用 `uv add` 来添加。
+- 对于只在开发过程中使用的依赖项，例如测试工具、文档工具，总是使用 `uv add --dev` 来添加。

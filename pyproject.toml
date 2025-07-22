@@ -13,3 +13,15 @@ dependencies = [
     "tomli-w>=1.2.0",
     "typer-slim[standard]>=0.16.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-mock>=3.14.1",
+]
