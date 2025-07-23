@@ -17,6 +17,7 @@ import typer
 from typing import Annotated
 
 import fabik
+from fabik import tpl
 from fabik.conf import ConfigReplacer, FabikConfig, TplWriter
 from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
 from fabric.connection import Connection
@@ -330,21 +331,23 @@ def conf_tpl(
     env_postfix: NoteEnvPostfix = False,
 ):
     """[local] Initialize configuration file content based on the template files in the local tpl directory."""
-    files: list[Path] = []
     # 需要检查 tpl_dir 是否存在
     global_state.register_config_validator(config_validator_tpldir)
     global_state.load_conf_data(check=True)
     tpl_dir = Path(global_state.fabic_config.getcfg("PATH", "tpl_dir"))  # type: ignore
+    tpl_names: list[str] = []
     for n in file:
-        f = tpl_dir.joinpath(n)
-        files.append(f)
-        if not f.exists():
-            echo_error(f'Template file "{f}" not found.')
+        # 模板名称统一不带 jinja2 后缀，模板文件必须带有 jinja2 后缀。
+        tpl_name = n[:-7] if n.endswith(".jinja2") else n
+        tpl_file = tpl_dir.joinpath(f'{tpl_name}.jinja2')
+        tpl_names.append(tpl_name)
+        if not tpl_file.exists():
+            echo_error(f'Template file "{tpl_file}" not found.')
             raise typer.Abort()
 
-    for f in files:
+    for tpl_name in tpl_names:
         global_state.write_config_file(
-            f.name,
+            tpl_name,
             tpl_dir=tpl_dir,
             target_postfix=f".{global_state.env}" if env_postfix else "",
         )
