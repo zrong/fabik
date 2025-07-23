@@ -8,18 +8,23 @@ fabik command line toolset
 
 __all__ = ["main_callback", "main_init", "conf_callback", "conf_tpl"]
 
+from enum import StrEnum
 import shutil
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import jinja2
 import typer
 from typing import Annotated
 
+
+class UUIDType(StrEnum):
+    UUID1 = "uuid1"
+    UUID4 = "uuid4"
+
 import fabik
-from fabik import tpl
-from fabik.conf import ConfigReplacer, FabikConfig, TplWriter
-from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
+from fabik import tpl, util
+from fabik.conf import ConfigReplacer, FabikConfig
 from fabric.connection import Connection
 from fabik.error import (
     ConfigError,
@@ -292,14 +297,14 @@ def main_init(
         pass
 
     value = jinja2.Template(
-        FABIK_TOML_TPL if full_format else FABIK_TOML_SIMPLE_TPL
+        tpl.FABIK_TOML_TPL if full_format else tpl.FABIK_TOML_SIMPLE_TPL
     ).render(
         create_time=f"{fabik.__now__!s}",
         fabik_version=fabik.__version__,
         WORK_DIR=work_dir.absolute().as_posix(),
     )
 
-    toml_file = work_dir.joinpath(FABIK_TOML_FILE)
+    toml_file = work_dir.joinpath(tpl.FABIK_TOML_FILE)
 
     if toml_file.exists():
         if force:
@@ -366,3 +371,30 @@ def conf_make(
         global_state.write_config_file(
             f, target_postfix=f".{global_state.env}" if env_postfix else ""
         )
+
+
+
+def gen_password(
+    password: Annotated[str, typer.Argument(help='提供密码。', show_default=False)],
+    salt: Annotated[
+        str,
+        typer.Argument(help='提供密码盐值。', show_default=False),
+    ],
+):
+    """返回加盐之后的 PASSWORD。"""
+    echo_info(util.gen.gen_password(password, salt))
+
+
+def gen_fernet_key():
+    """生成一个 SECRET_KEY。"""
+    echo_info(util.gen.gen_fernet_key())
+
+
+def gen_token(length: Annotated[int, typer.Argument(help='字符串位数。')] = 8):
+    """根据提供的位数，返回一个 token 字符串。"""
+    echo_info(util.gen.gen_token(k=length))
+
+
+def gen_uuid(name: Annotated[UUIDType, typer.Argument(help='UUID 类型。')] = UUIDType.UUID4):
+    """根据提供的名称，调用 uuid 库返回一个 UUID 字符串，仅支持 uuid1 和 uuid4 两种类型。"""
+    echo_info(util.gen.gen_uuid(name.value))

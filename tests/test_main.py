@@ -1,5 +1,5 @@
 """
-Tests for fabik.cmd module
+Tests for fabik.cmd module's main_init function
 """
 
 import pytest
@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import typer
-import fabik
 import jinja2
 from fabik.cmd import main_init, global_state
 from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
@@ -297,4 +296,4 @@ class TestMainInit:
         
         # 读取文件内容，验证是否与渲染结果一致
         assert simple_file.read_text() == simple_result
-        assert full_file.read_text() == full_result 
+        assert full_file.read_text() == full_result
