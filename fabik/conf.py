@@ -315,7 +315,7 @@ class TplWriter(ConfigWriter):
         """
         super().__init__(tpl_name, dst_file, replace_obj)
 
-        # 自动增加 jinja2 后缀
+        # 自动增加 jinja2 后缀，模板文件必须带有 jinja2 后缀。
         self.tpl_filename = (
             tpl_name if tpl_name.endswith(".jinja2") else f"{tpl_name}.jinja2"
         )
