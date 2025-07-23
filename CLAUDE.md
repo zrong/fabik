@@ -36,7 +36,7 @@ uv run pytest
 | 添加开发包 | `uv add --dev package` |
 | 运行 CLI | `uv run fabik` |
 | 运行测试 | `uv run pytest` |
-| 运行特定测试 | `uv run pytest tests/test_cmd.py::TestMainInit::test_init_new_config_file` |
+| 运行特定测试 | `uv run pytest tests/test_main.py::TestMainInit::test_init_new_config_file` |
 | 覆盖率 | `uv run pytest --cov=fabik` |
 
 ## 架构
@@ -77,7 +77,7 @@ tpl_dir = "{work_dir}/tpls"
 ### 添加命令
 1. 在 `cmd.py` 中定义回调函数
 2. 使用 typer 在 `cli.py` 中注册
-3. 在 `tests/test_cmd.py` 中添加测试
+3. 将单元测试按照模块划分功能,例如 `main_init` 在 `tests/test_main.py` 中定义, `conf_*` 在 `tests/test_conf.py` 中定义, `gen_*` 在 `tests/test_gen.py` 中定义.
 
 ### 模板系统
 - 模板位于 `tpls/` 目录

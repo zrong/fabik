@@ -7,7 +7,17 @@ fabik command line interface implementation
 """
 
 import typer
-from fabik.cmd import main_callback, main_init, conf_callback, conf_tpl, conf_make
+from fabik.cmd import (
+    main_callback,
+    main_init,
+    conf_callback,
+    conf_tpl,
+    conf_make,
+    gen_password,
+    gen_fernet_key,
+    gen_token,
+    gen_uuid,
+)
 
 main: typer.Typer = typer.Typer()
 
@@ -29,4 +39,9 @@ main.command('init')(main_init)
 sub_conf.callback()(conf_callback)
 sub_conf.command('tpl')(conf_tpl)
 sub_conf.command('make')(conf_make)
+
+sub_gen.command('password')(gen_password)
+sub_gen.command('fernet-key')(gen_fernet_key)
+sub_gen.command('token')(gen_token)
+sub_gen.command('uuid')(gen_uuid)
     

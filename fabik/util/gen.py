@@ -7,6 +7,7 @@ fabik.util.gen
 """
 
 import string
+import uuid
 import random
 from datetime import datetime
 
@@ -14,7 +15,7 @@ from fabik.util import md5txt
 from fabik.util.encrypt import Encrypt
 
 
-def gen_nonce(k=8, chars=string.ascii_letters + string.digits):
+def gen_token(k=8, chars=string.ascii_letters + string.digits):
     """ 生成一段加密用的字符串
     字符串可以被用于密码、兑换码等等
     """
@@ -81,7 +82,16 @@ def gen_sign(**kwargs):
     return md5txt('&'.join(k_eq_v))
 
 
-def gen_secret_key() -> str:
-    """ 生成 FLASK 可以使用的 SECRET_KEY
+def gen_fernet_key() -> str:
+    """ 使用 cryptography.fernet 生成一个 Fernet 算法 KEY。
     """
     return Encrypt.fernet_key().decode()
+
+
+def gen_uuid(name: str= 'uuid4') -> str:
+    """ 使用 uuid 库生成一个 UUID。
+    """
+    if name == 'uuid1':
+        return str(uuid.uuid1())
+    return str(uuid.uuid4())
+        

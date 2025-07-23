@@ -5,13 +5,6 @@ fabik.util
 
 封装的小工具。
 """
-import encrypt
-import func
-import gen
-import date
-import jinja_filter
-
-__all__ = ['encrypt', 'func', 'gen', 'date', 'jinja_filter']
 
 import hashlib
 import base64
@@ -39,3 +32,9 @@ def md5base64(txt: str | bytes) -> str:
         txt = txt.encode('utf-8')
     m.update(txt)
     return base64.encodebytes(m.digest())[:-1].decode('utf8')
+
+
+# 在函数定义之后导入gen，避免循环导入
+from . import gen
+
+__all__ = ['md5txt', 'md5base64', 'gen']
