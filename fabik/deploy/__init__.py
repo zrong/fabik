@@ -17,6 +17,7 @@ from fabric.connection import Connection
 from invoke.exceptions import Exit
 
 from fabik.conf import ConfigReplacer
+from fabik.error import FabikError, echo_error
 
 logger = logging.Logger('fabric', level=logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -153,29 +154,23 @@ def rsync(
 
 
 class Deploy(object):
-    env_name: str = None
-    fabik_conf: dict = None
-    envs: dict = None
-    work_dir: Path = None
-    conn: Connection = None
-    pye: str = None
-    replacer: ConfigReplacer = None
+    fabik_conf: dict
+    work_dir: Path
+    conn: Connection
+    env_name: str | None = None
+    pye: str
+    replacer: ConfigReplacer
 
-    def __init__(self, env_name: str, fabik_conf: dict, conn: Connection, work_dir: Path | None = None):
+    def __init__(self, fabik_conf: dict, work_dir: Path, conn: Connection, env_name: str | None=None):
         """ 初始化
         """
         self.env_name = env_name
         self.fabik_conf = fabik_conf
-        self.envs = fabik_conf['ENV']
         self.conn = conn
         self.work_dir = Path(work_dir)
         self.pye = fabik_conf['PYE']
-        self.replacer = ConfigReplacer(env_name, fabik_conf, self.work_dir)
-
-        try:
-            self.replacer.check_env_name()
-        except Exception as e:
-            raise Exit(e)
+        self.replacer = ConfigReplacer(fabik_conf, self.work_dir, env_name=env_name)
+        self.replacer.check_env_name()
 
     def check_remote_conn(self):
         """ 确保当前提供的 conn 是远程版本

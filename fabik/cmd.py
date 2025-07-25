@@ -221,15 +221,38 @@ class GlobalState:
     def build_deploy_conn(self, deploy_class: type["Deploy"]) -> "Deploy":  # type: ignore  # noqa: F821
         """创建一个远程部署连接。"""
         try:
+            # 确保配置已加载
+            if self.fabic_config is None:
+                self.load_conf_data(check=True)
+
+            # 使用已加载的配置
             replacer = ConfigReplacer(self.conf_data, self.cwd, env_name=self.env)  # type: ignore
             # 从 fabik.toml 配置中获取服务器地址
-            fabric_conf = replacer.get_tpl_value("FABRIC", merge=False)
+            fabric_conf = replacer.get_tpl_value("FABRIC", merge=True)
+            pye_conf = replacer.get_tpl_value("PYE", merge=True)
+
+            # 确保 fabric_conf 是一个字典
+            if (
+                not isinstance(fabric_conf, dict)
+                or "host" not in fabric_conf
+                or "user" not in fabric_conf
+            ):
+                raise ConfigError(
+                    err_type=ValueError(),
+                    err_msg="FABRIC configuration must contain 'host' and 'user' parameter",
+                )
+
+            if pye_conf is None:
+                raise ConfigError(
+                    err_type=ValueError(),
+                    err_msg="PYE configuration is required",
+                )
 
             d = deploy_class(
-                global_state.env,
                 global_state.conf_data,
-                Connection(**fabric_conf),
                 global_state.cwd,
+                Connection(**fabric_conf),
+                global_state.env,
             )
             self.deploy_conn = d
             return d
@@ -239,6 +262,15 @@ class GlobalState:
         except Exception as e:
             echo_error(str(e))
             raise typer.Abort()
+
+    def __repr__(self) -> str:
+        return f"""{self.__class__.__name__}(
+    env={self.env}, 
+    cwd={self.cwd!s}, 
+    conf_file={self.conf_file!s}, 
+    force={self.force}, 
+    fabic_config={self.fabic_config!s}
+)"""
 
 
 # 创建全局状态实例并注册默认验证器
@@ -288,7 +320,10 @@ def main_callback(
         echo_error(e.err_msg)
         raise typer.Exit()
 
-    echo_info(f"main_callback {global_state.env=}, {global_state.cwd=}, {global_state.conf_file=}", panel_title="LOG: main_callback")
+    echo_info(
+        f"{global_state!r}",
+        panel_title="LOG: main_callback",
+    )
 
 
 def main_init(
@@ -413,7 +448,9 @@ def gen_requirements(
     work_dir: Path = global_state.check_work_dir_or_use_cwd()
     requirements_txt = work_dir / "requirements.txt"
     if requirements_txt.exists() and not force:
-        echo_warning(f"{requirements_txt.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。")
+        echo_warning(
+            f"{requirements_txt.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。"
+        )
         raise typer.Exit()
     try:
         # 执行 uv export 命令生成 requirements.txt
