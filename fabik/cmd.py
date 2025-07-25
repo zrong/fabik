@@ -9,22 +9,23 @@ fabik command line toolset
 __all__ = ["main_callback", "main_init", "conf_callback", "conf_tpl"]
 
 from enum import StrEnum
+import glob
 import shutil
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable
 
 import jinja2
 import typer
 from typing import Annotated
 
-
-class UUIDType(StrEnum):
-    UUID1 = "uuid1"
-    UUID4 = "uuid4"
-
 import fabik
 from fabik import tpl, util
-from fabik.conf import ConfigReplacer, FabikConfig
+from fabik.conf import (
+    ConfigReplacer,
+    FabikConfig,
+    config_validator_name_workdir,
+    config_validator_tpldir,
+)
 from fabric.connection import Connection
 from fabik.error import (
     ConfigError,
@@ -36,6 +37,16 @@ from fabik.error import (
 )
 
 
+class UUIDType(StrEnum):
+    UUID1 = "uuid1"
+    UUID4 = "uuid4"
+
+
+class DeployClassName(StrEnum):
+    GUNICORN = "gunicorn"
+    uWSGI = "uwsgi"
+
+
 class GlobalState:
     cwd: Path | None = None
     env: str | None = None
@@ -43,6 +54,8 @@ class GlobalState:
     conf_file: Path | None = None
     fabic_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
+
+    deploy_conn: "Deploy"  = None # type: ignore # noqa: F821
 
     @property
     def conf_data(self) -> dict[str, Any]:
@@ -136,109 +149,80 @@ class GlobalState:
             echo_error(str(e))
             raise typer.Abort()
 
+    def copy_tpl_file(self, keyname: str, filename: str, rename: bool = False):
+        """复制文件到目标文件夹。
 
-def check_none(value: Any, key_list: list[str]) -> Any:
-    if value is None:
-        echo_error(f'Key "{key_list!s}" not found in config.')
-        raise typer.Abort()
-    return value
+        :param rename: 若文件已存在是否重命名
+        """
+        split_path = keyname.split("/")
 
+        if self.fabic_config is None:
+            echo_warning("Please perform GlobalState.load_conf_data first.")
+            raise typer.Exit()
 
-def check_path_exists(p: Path) -> bool:
-    if not p.is_absolute():
-        echo_error(f"{p!s} is not a absolute path.")
-        raise typer.Abort()
-    if not p.exists():
-        echo_error(f"{p!s} is not a exists path.")
-        raise typer.Abort()
-    return True
+        config_validator_tpldir(self.fabic_config)
+        # 源文件夹
+        srcfiledir = Path(self.fabic_config.getcfg("PATH", "tpl_dir"))
+        # 目标文件夹
+        dstfiledir = self.cwd
+        while len(split_path) > 1:
+            # 检测是否拥有中间文件夹，若有就创建它
+            dstfiledir = dstfiledir.joinpath(split_path[0])  # type: ignore
+            srcfiledir = srcfiledir.joinpath(split_path[0])
+            if not dstfiledir.exists():
+                dstfiledir.mkdir()
+            split_path = split_path[1:]
 
+        srcfile = srcfiledir / filename
+        dstfile = dstfiledir / filename  # type: ignore
 
-# 默认验证器函数
-def config_validator_name_workdir(config: FabikConfig) -> bool:
-    """检查 NAME 和 work_dir 是否存在"""
-    keys = (["NAME"], ["PATH", "work_dir"])
-    for key_list in keys:
-        value = check_none(config.getcfg(*key_list), key_list)
-        if key_list[-1] == "work_dir":
-            check_path_exists(Path(value))
-    return True
+        if dstfile.exists():
+            if self.force:
+                shutil.copyfile(srcfile, dstfile)
+                echo_info(f"覆盖 [red]{srcfile}[/] 到 [red]{dstfile}[/]")
+            elif rename:
+                dstbak = dstfile.parent.joinpath(dstfile.name + ".bak")
+                if dstbak.exists():
+                    echo_warning(
+                        f"备份文件 [red]{dstbak}[/] 已存在！请先删除备份文件。"
+                    )
+                else:
+                    shutil.move(dstfile, dstbak)
+                    echo_info(f"备份文件 [yellow]{dstfile}[/] 到 [yellow]{dstbak}[/]")
+                    shutil.copyfile(srcfile, dstfile)
+                    echo_info(f"复制 {srcfile} 到 {dstfile}")
+            else:
+                echo_warning(f"文件 [red]{dstfile}[/] 已存在！")
+        else:
+            shutil.copyfile(srcfile, dstfile)
+            echo_info(f"复制 [red]{srcfile}[/] 到 [red]{dstfile}[/]！")
 
+    def build_deploy_conn(self, deploy_class: type["Deploy"]) -> "Deploy":  # type: ignore  # noqa: F821
+        """创建一个远程部署连接。"""
+        try:
+            replacer = ConfigReplacer(self.conf_data, self.cwd, env_name=self.env)  # type: ignore
+            # 从 fabik.toml 配置中获取服务器地址
+            fabric_conf = replacer.get_tpl_value("FABRIC", merge=False)
 
-def config_validator_tpldir(config: FabikConfig) -> bool:
-    """默认的配置验证逻辑，检查必要的配置项是否存在"""
-    key_list = ["PATH", "tpl_dir"]
-    value = check_none(config.getcfg(*key_list), key_list)
-    check_path_exists(Path(value))
-    return True
+            d = deploy_class(
+                global_state.env,
+                global_state.conf_data,
+                Connection(**fabric_conf),
+                global_state.cwd,
+            )
+            self.deploy_conn = d
+            return d
+        except FabikError as e:
+            echo_error(e.err_msg)
+            raise typer.Abort()
+        except Exception as e:
+            echo_error(str(e))
+            raise typer.Abort()
 
 
 # 创建全局状态实例并注册默认验证器
 global_state = GlobalState()
 global_state.register_config_validator(config_validator_name_workdir)
-
-
-def copytplfile(keyname: str, filename: str, rename: bool = False):
-    """复制文件到目标文件夹。
-
-    :param rename: 若文件已存在是否重命名
-    """
-    split_path = keyname.split("/")
-
-    # 源文件夹
-    srcfiledir = pyape_tpl_dir
-    # 目标文件夹
-    dstfiledir = global_state.cwd
-    while len(split_path) > 1:
-        # 检测是否拥有中间文件夹，若有就创建它
-        dstfiledir = dstfiledir.joinpath(split_path[0])
-        srcfiledir = srcfiledir.joinpath(split_path[0])
-        if not dstfiledir.exists():
-            dstfiledir.mkdir()
-        split_path = split_path[1:]
-
-    srcfile = srcfiledir / filename
-    dstfile = dstfiledir / filename
-
-    if dstfile.exists():
-        if global_state.force:
-            shutil.copyfile(srcfile, dstfile)
-            echo_info(f"覆盖 [red]{srcfile}[/] 到 [red]{dstfile}[/]")
-        elif rename:
-            dstbak = dstfile.parent.joinpath(dstfile.name + ".bak")
-            if dstbak.exists():
-                echo_warning(f"备份文件 [red]{dstbak}[/] 已存在！请先删除备份文件。")
-            else:
-                shutil.move(dstfile, dstbak)
-                echo_info(f"备份文件 [yellow]{dstfile}[/] 到 [yellow]{dstbak}[/]")
-                shutil.copyfile(srcfile, dstfile)
-                echo_info(f"复制 {srcfile} 到 {dstfile}")
-        else:
-            echo_warning(f"文件 [red]{dstfile}[/] 已存在！")
-    else:
-        shutil.copyfile(srcfile, dstfile)
-        echo_info(f"复制 [red]{srcfile}[/] 到 [red]{dstfile}[/]！")
-
-
-def build_deploy_conn(ctx: typer.Context, deploy_class: type["Deploy"]) -> "Deploy":  # noqa: F821
-    """创建一个远程部署连接。"""
-    try:
-        pyape_conf = check_fabik_toml(ctx)
-        replacer = ConfigReplacer(global_state.env, pyape_conf, global_state.cwd)
-        # 从 pyape.toml 配置中获取服务器地址
-        fabric_conf = replacer.get_tpl_value("FABRIC", merge=False)
-
-        d = deploy_class(
-            global_state.env,
-            global_state.conf_data,
-            Connection(**fabric_conf),
-            global_state.cwd,
-        )
-        return d
-    except FabikError as e:
-        ctx.fail(e.err_msg)
-    except Exception as e:
-        ctx.fail(str(e))
 
 
 # ==============================================
@@ -344,7 +328,7 @@ def conf_tpl(
     for n in file:
         # 模板名称统一不带 jinja2 后缀，模板文件必须带有 jinja2 后缀。
         tpl_name = n[:-7] if n.endswith(".jinja2") else n
-        tpl_file = tpl_dir.joinpath(f'{tpl_name}.jinja2')
+        tpl_file = tpl_dir.joinpath(f"{tpl_name}.jinja2")
         tpl_names.append(tpl_name)
         if not tpl_file.exists():
             echo_error(f'Template file "{tpl_file}" not found.')
@@ -373,12 +357,12 @@ def conf_make(
         )
 
 
-
+# -------------------------------------- 子命令 gen
 def gen_password(
-    password: Annotated[str, typer.Argument(help='提供密码。', show_default=False)],
+    password: Annotated[str, typer.Argument(help="提供密码。", show_default=False)],
     salt: Annotated[
         str,
-        typer.Argument(help='提供密码盐值。', show_default=False),
+        typer.Argument(help="提供密码盐值。", show_default=False),
     ],
 ):
     """返回加盐之后的 PASSWORD。"""
@@ -390,11 +374,91 @@ def gen_fernet_key():
     echo_info(util.gen.gen_fernet_key())
 
 
-def gen_token(length: Annotated[int, typer.Argument(help='字符串位数。')] = 8):
+def gen_token(length: Annotated[int, typer.Argument(help="字符串位数。")] = 8):
     """根据提供的位数，返回一个 token 字符串。"""
     echo_info(util.gen.gen_token(k=length))
 
 
-def gen_uuid(name: Annotated[UUIDType, typer.Argument(help='UUID 类型。')] = UUIDType.UUID4):
+def gen_uuid(
+    name: Annotated[UUIDType, typer.Argument(help="UUID 类型。")] = UUIDType.UUID4,
+):
     """根据提供的名称，调用 uuid 库返回一个 UUID 字符串，仅支持 uuid1 和 uuid4 两种类型。"""
     echo_info(util.gen.gen_uuid(name.value))
+
+
+# ---------------------------- 子命令 venv
+#
+def server_callback(
+    deploy_class: Annotated[
+        DeployClassName, typer.Option(help="指定部署类。")
+    ] = DeployClassName.GUNICORN,
+):
+    if deploy_class == DeployClassName.GUNICORN:
+        from fabik.deploy.gunicorn import GunicornDeploy as Deploy
+
+        global_state.build_deploy_conn(Deploy)
+    elif deploy_class == DeployClassName.uWSGI:
+        from fabik.deploy.uwsgi import UwsgiDeploy as Deploy
+
+        global_state.build_deploy_conn(Deploy)
+
+
+def venv_update(
+    name: Annotated[
+        list[str] | None, typer.Argument(help="指定希望更新的 pip 包名称。")
+    ] = None,
+    init: Annotated[bool, typer.Option(help="是否初始化虚拟环境。")] = False,
+    requirements: Annotated[
+        str, typer.Option(help="指定 requirements.txt 的相对路径。")
+    ] = "requirements.txt",
+):
+    """「远程」部署远程服务器的虚拟环境。"""
+    if init:
+        global_state.deploy_conn.init_remote_venv(req_path=requirements) # type: ignore # noqa: F821
+    if name is not None and len(name) > 0:
+        global_state.deploy_conn.pipupgrade(names=name) # type: ignore # noqa: F821
+    else:
+        global_state.deploy_conn.pipupgrade(all=True) # type: ignore # noqa: F821
+
+
+def venv_outdated():
+    """「远程」打印所有的过期的 python package。"""
+    global_state.deploy_conn.pipoutdated()  # type: ignore # noqa: F821
+
+
+# ---------------------------- 子命令 server
+
+
+def server_deploy():
+    """「远程」部署项目到远程服务器。"""
+    global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"]) # type: ignore # noqa: F821
+    global_state.deploy_conn.put_config(force=True) # type: ignore # noqa: F821
+
+
+def server_start():
+    """「远程」在服务器上启动项目进程。"""
+    global_state.deploy_conn.start() # type: ignore # noqa: F821
+
+
+def server_stop():
+    """「远程」在服务器上停止项目进程。"""
+    global_state.deploy_conn.stop() # type: ignore # noqa: F821
+
+
+def server_reload():
+    """「远程」在服务器上重载项目进程。"""
+    global_state.deploy_conn.reload() # type: ignore # noqa: F821
+
+
+def server_dar():
+    """「远程」在服务器上部署代码，然后执行重载。也就是 deploy and reload 的组合。"""
+    try:
+        global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"]) # type: ignore # noqa: F821
+        global_state.deploy_conn.put_config(force=True) # type: ignore # noqa: F821
+        global_state.deploy_conn.reload() # type: ignore # noqa: F821
+    except FabikError as e:
+        echo_error(e.err_msg)
+        raise typer.Abort()
+    except Exception as e:
+        echo_error(str(e))
+        raise typer.Abort()

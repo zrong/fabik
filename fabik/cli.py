@@ -17,6 +17,14 @@ from fabik.cmd import (
     gen_fernet_key,
     gen_token,
     gen_uuid,
+    server_callback,
+    venv_update,
+    venv_outdated,
+    server_deploy,
+    server_start,
+    server_stop,
+    server_reload,
+    server_dar,
 )
 
 main: typer.Typer = typer.Typer()
@@ -26,10 +34,14 @@ sub_conf: typer.Typer = typer.Typer(name='conf', help='[local/remote] Process co
 sub_venv: typer.Typer = typer.Typer(
     name='venv', help='[remote] Process Python virtual environment on remote server.'
 )
+sub_server: typer.Typer = typer.Typer(
+    name='server', help='[remote] Process remote server.'
+)
 
 main.add_typer(sub_gen)
 main.add_typer(sub_conf)
-# main.add_typer(sub_venv)
+main.add_typer(sub_venv)
+main.add_typer(sub_server)
 
 
 # The method in cmd module may be used as a command by other modules, so it is not decorated with a decorator.
@@ -45,3 +57,15 @@ sub_gen.command('fernet-key')(gen_fernet_key)
 sub_gen.command('token')(gen_token)
 sub_gen.command('uuid')(gen_uuid)
     
+    
+sub_venv.callback()(server_callback)
+sub_venv.command('update')(venv_update)
+sub_venv.command('outdated')(venv_outdated)
+
+
+sub_server.callback()(server_callback)
+sub_server.command('deploy')(server_deploy)
+sub_server.command('start')(server_start)
+sub_server.command('stop')(server_stop)
+sub_server.command('reload')(server_reload)
+sub_server.command('dar')(server_dar)
