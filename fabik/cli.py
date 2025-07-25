@@ -19,6 +19,7 @@ from fabik.cmd import (
     gen_uuid,
     gen_requirements,
     server_callback,
+    venv_init,
     venv_update,
     venv_outdated,
     server_deploy,
@@ -61,6 +62,7 @@ sub_gen.command('requirements')(gen_requirements)
     
     
 sub_venv.callback()(server_callback)
+sub_venv.command('init')(venv_init)
 sub_venv.command('update')(venv_update)
 sub_venv.command('outdated')(venv_outdated)
 

@@ -251,7 +251,7 @@ class Deploy(object):
         remote_venv_dir = self.get_remote_path('venv')
         if not self.remote_exists(remote_venv_dir):
             raise Exit('venv 还没有创建！请先执行 init_remote_venv')
-        return 'source {}/bin/activate'.format(remote_venv_dir)
+        return f'source {remote_venv_dir}/bin/activate'
 
     def init_remote_venv(self, requirements_file_name: str):
         """ 创建虚拟环境
