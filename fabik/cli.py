@@ -17,6 +17,7 @@ from fabik.cmd import (
     gen_fernet_key,
     gen_token,
     gen_uuid,
+    gen_requirements,
     server_callback,
     venv_update,
     venv_outdated,
@@ -56,6 +57,7 @@ sub_gen.command('password')(gen_password)
 sub_gen.command('fernet-key')(gen_fernet_key)
 sub_gen.command('token')(gen_token)
 sub_gen.command('uuid')(gen_uuid)
+sub_gen.command('requirements')(gen_requirements)
     
     
 sub_venv.callback()(server_callback)

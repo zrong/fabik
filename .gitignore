@@ -11,10 +11,11 @@ wheels/
 
 
 # fabik project 
+/tpls/
 /fabik.toml
 /fabik.bak*
 /config.toml
 /config.toml.bak*
 /gunicorn.conf.py
 /gunicorn.conf.py.bak*
-tpls/
+/requirements.txt

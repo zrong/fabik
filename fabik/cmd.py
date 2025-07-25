@@ -6,10 +6,16 @@ fabik.cmd
 fabik command line toolset
 """
 
-__all__ = ["main_callback", "main_init", "conf_callback", "conf_tpl"]
+__all__ = [
+    "main_callback",
+    "main_init",
+    "conf_callback",
+    "conf_tpl",
+    "gen_requirements",
+]
 
 from enum import StrEnum
-import glob
+from ntpath import expanduser
 import shutil
 from pathlib import Path
 from typing import Any, Callable
@@ -17,6 +23,7 @@ from typing import Any, Callable
 import jinja2
 import typer
 from typing import Annotated
+import subprocess
 
 import fabik
 from fabik import tpl, util
@@ -48,14 +55,14 @@ class DeployClassName(StrEnum):
 
 
 class GlobalState:
-    cwd: Path | None = None
+    cwd: Path
+    conf_file: Path
     env: str | None = None
     force: bool = False
-    conf_file: Path | None = None
     fabic_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
-    deploy_conn: "Deploy"  = None # type: ignore # noqa: F821
+    deploy_conn: "Deploy" = None  # type: ignore # noqa: F821
 
     @property
     def conf_data(self) -> dict[str, Any]:
@@ -89,6 +96,20 @@ class GlobalState:
                 raise typer.Abort()
 
         return True
+
+    def check_work_dir_or_use_cwd(self) -> Path:
+        """如果提供了配置文件，检测 work_dir 并返回。否则使用 cwd 作为 work_dir。"""
+        try:
+            conf = FabikConfig(self.cwd, cfg=self.conf_file)
+            conf.load_root_data()
+            work_dir = Path(conf.getcfg("PATH", "work_dir"))
+            if not work_dir.is_absolute():
+                echo_warning(f"{work_dir} is not a absolute path.")
+                raise typer.Exit()
+            return work_dir
+        except (PathError, ConfigError):
+            pass
+        return self.cwd
 
     def load_conf_data(
         self,
@@ -229,17 +250,6 @@ global_state.register_config_validator(config_validator_name_workdir)
 # functions for command line interface
 # ==============================================
 
-NoteEnv = Annotated[str | None, typer.Option("--env", "-e", help="Environment name.")]
-NoteCwd = Annotated[
-    Path,
-    typer.Option(
-        file_okay=False, exists=True, help="Specify the local working directory."
-    ),
-]
-NoteConfFile = Annotated[
-    Path | None,
-    typer.Option(file_okay=True, exists=True, help="Specify the configuration file."),
-]
 NoteRename = Annotated[bool, typer.Option(help="If the target file exists, rename it.")]
 NoteForce = Annotated[
     bool, typer.Option("--force", "-f", help="Force to overwrite the existing file.")
@@ -250,16 +260,35 @@ NoteEnvPostfix = Annotated[
 
 
 def main_callback(
-    env: NoteEnv = None,
-    cwd: NoteCwd = Path.cwd(),
-    conf_file: NoteConfFile = None,
+    env: Annotated[
+        str | None, typer.Option("--env", "-e", help="Environment name.")
+    ] = None,
+    cwd: Annotated[
+        Path | None,
+        typer.Option(
+            file_okay=False, exists=True, help="Specify the local working directory."
+        ),
+    ] = None,
+    conf_file: Annotated[
+        Path | None,
+        typer.Option(
+            file_okay=True, exists=True, help="Specify the configuration file."
+        ),
+    ] = None,
 ):
-    global_state.cwd = cwd
-    global_state.env = env
-    global_state.conf_file = FabikConfig.gen_fabik_toml(
-        work_dir=global_state.cwd, conf_file=conf_file
-    )
-    echo_info(f"main_callback {global_state=}", panel_title="LOG: main_callback")
+    try:
+        global_state.env = env
+        global_state.cwd = FabikConfig.gen_work_dir(cwd)
+        global_state.conf_file = (
+            FabikConfig.gen_fabik_toml(work_dir=global_state.cwd, conf_file=None)
+            if conf_file is None
+            else conf_file
+        )
+    except FabikError as e:
+        echo_error(e.err_msg)
+        raise typer.Exit()
+
+    echo_info(f"main_callback {global_state.env=}, {global_state.cwd=}, {global_state.conf_file=}", panel_title="LOG: main_callback")
 
 
 def main_init(
@@ -269,16 +298,7 @@ def main_init(
     force: NoteForce = False,
 ):
     """[local] Initialize fabik project, create fabik.toml configuration file in the working directory."""
-    work_dir: Path = Path()
-    try:
-        conf = FabikConfig(global_state.cwd, cfg=global_state.conf_file)
-        conf.load_root_data()
-        work_dir = Path(conf.getcfg("PATH", "work_dir"))
-        if not work_dir.is_absolute():
-            echo_warning(f"{work_dir} is not a absolute path.")
-            raise typer.Abort()
-    except (PathError, ConfigError):
-        pass
+    work_dir: Path = global_state.check_work_dir_or_use_cwd()
 
     value = jinja2.Template(
         tpl.FABIK_TOML_TPL if full_format else tpl.FABIK_TOML_SIMPLE_TPL
@@ -386,6 +406,40 @@ def gen_uuid(
     echo_info(util.gen.gen_uuid(name.value))
 
 
+def gen_requirements(
+    force: NoteForce = False,
+):
+    """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
+    work_dir: Path = global_state.check_work_dir_or_use_cwd()
+    requirements_txt = work_dir / "requirements.txt"
+    if requirements_txt.exists() and not force:
+        echo_warning(f"{requirements_txt.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。")
+        raise typer.Exit()
+    try:
+        # 执行 uv export 命令生成 requirements.txt
+        subprocess.run(
+            [
+                "uv",
+                "export",
+                "--format",
+                "requirements-txt",
+                "--no-hashes",
+                "--output-file",
+                f"{requirements_txt.absolute().as_posix()}",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        echo_info("requirements.txt 文件已成功生成！")
+    except subprocess.CalledProcessError as e:
+        echo_error(f"生成 requirements.txt 失败: {e.stderr}")
+        raise typer.Abort()
+    except FileNotFoundError:
+        echo_error("未找到 uv 命令，请确保已安装 uv 工具")
+        raise typer.Abort()
+
+
 # ---------------------------- 子命令 venv
 #
 def server_callback(
@@ -414,11 +468,11 @@ def venv_update(
 ):
     """「远程」部署远程服务器的虚拟环境。"""
     if init:
-        global_state.deploy_conn.init_remote_venv(req_path=requirements) # type: ignore # noqa: F821
+        global_state.deploy_conn.init_remote_venv(req_path=requirements)  # type: ignore # noqa: F821
     if name is not None and len(name) > 0:
-        global_state.deploy_conn.pipupgrade(names=name) # type: ignore # noqa: F821
+        global_state.deploy_conn.pipupgrade(names=name)  # type: ignore # noqa: F821
     else:
-        global_state.deploy_conn.pipupgrade(all=True) # type: ignore # noqa: F821
+        global_state.deploy_conn.pipupgrade(all=True)  # type: ignore # noqa: F821
 
 
 def venv_outdated():
@@ -431,31 +485,31 @@ def venv_outdated():
 
 def server_deploy():
     """「远程」部署项目到远程服务器。"""
-    global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"]) # type: ignore # noqa: F821
-    global_state.deploy_conn.put_config(force=True) # type: ignore # noqa: F821
+    global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"])  # type: ignore # noqa: F821
+    global_state.deploy_conn.put_config(force=True)  # type: ignore # noqa: F821
 
 
 def server_start():
     """「远程」在服务器上启动项目进程。"""
-    global_state.deploy_conn.start() # type: ignore # noqa: F821
+    global_state.deploy_conn.start()  # type: ignore # noqa: F821
 
 
 def server_stop():
     """「远程」在服务器上停止项目进程。"""
-    global_state.deploy_conn.stop() # type: ignore # noqa: F821
+    global_state.deploy_conn.stop()  # type: ignore # noqa: F821
 
 
 def server_reload():
     """「远程」在服务器上重载项目进程。"""
-    global_state.deploy_conn.reload() # type: ignore # noqa: F821
+    global_state.deploy_conn.reload()  # type: ignore # noqa: F821
 
 
 def server_dar():
     """「远程」在服务器上部署代码，然后执行重载。也就是 deploy and reload 的组合。"""
     try:
-        global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"]) # type: ignore # noqa: F821
-        global_state.deploy_conn.put_config(force=True) # type: ignore # noqa: F821
-        global_state.deploy_conn.reload() # type: ignore # noqa: F821
+        global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"])  # type: ignore # noqa: F821
+        global_state.deploy_conn.put_config(force=True)  # type: ignore # noqa: F821
+        global_state.deploy_conn.reload()  # type: ignore # noqa: F821
     except FabikError as e:
         echo_error(e.err_msg)
         raise typer.Abort()

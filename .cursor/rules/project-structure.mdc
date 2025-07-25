@@ -7,17 +7,25 @@ alwaysApply: true
 
 # 项目结构指南
 
-这是一个名为 `fabik` 的 Python 项目：
+这是一个名为 `fabik` 的 Python 命令行项目：
 
 - 主入口文件是 `fabik/__main__.py` ，其中使用代码定义入口点。
 - 项目配置在 `pyproject.toml` 中定义
 - 项目的主配置文件为 `fabik.toml`。
+- 项目的虚拟环境在 `.venv/` 文件夹中。
+
+# fabik 命令行调用
+
+- 激活 `.venv/` 虚拟环境后，可以使用 `python fabik` 或者 `python -m fabik` 调用命令行。
+- 命令行基于 `typer` 库开发。
+- 命令行有多个子命令，可以通过 `python -m fabik --help` 查看。
+
 
 # 项目支持工具
 
 - 使用 `uv` 代替 `pip` 作为包管理工具。
 - 使用 `uv` 作为包发布工具。
-- 使用 `uv run script.py` 来运行一个 python 脚本。
+- 使用 `uv run fabik` 来运行项目的命令行。
 - 使用 `pytest` 作为测试工具。
 - 在使用 `pytest` 执行测试时，使用 `tests/fabik.toml` 作为主配置文件。
 

@@ -86,6 +86,11 @@ RSYNC_EXCLUDE = [
     'gunicorn.*',
 ]
 
+# 用于 fabric 进行远程部署时候的配置
+[FABRIC]
+host = 'huche-s1'
+user = 'app'
+
 # .env 基本配置文件内容，保存 FLASK 运行需要的配置，以及 flask.config 中的配置
 ['.env']
 FLASK_APP = 'wsgi:{{NAME}}_app'
