@@ -498,33 +498,35 @@ def server_callback(
         global_state.build_deploy_conn(Deploy)
 
 
+def venv_init(
+    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
+):
+    """「远程」部署远程服务器的虚拟环境。"""
+    try:
+        rsync_exclude = global_state.conf_data.get("RSYNC_EXCLUDE", [])
+        global_state.deploy_conn.rsync(exclude=rsync_exclude)
+        global_state.deploy_conn.init_remote_venv(requirements_file_name)
+    except Exception as e:
+        echo_error(f"初始化虚拟环境失败: {str(e)}")
+        raise typer.Abort()
+
+
 def venv_update(
     name: Annotated[
         list[str] | None, typer.Argument(help="指定希望更新的 pip 包名称。")
     ] = None,
-    init: Annotated[bool, typer.Option(help="是否初始化虚拟环境。")] = False,
-    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
+    all: Annotated[bool, typer.Option(help="更新所有 pip 包。")] = False,
 ):
     """「远程」部署远程服务器的虚拟环境。"""
-    if global_state.deploy_conn is None:
-        echo_error("部署连接未初始化，请检查 FABRIC 配置")
-        raise typer.Abort()
-        
-    if init:
-        # 初始化时先部署项目文件
-        try:
-            rsync_exclude = global_state.conf_data.get("RSYNC_EXCLUDE", [])
-            global_state.deploy_conn.rsync(exclude=rsync_exclude)
-            global_state.deploy_conn.init_remote_venv(requirements_file_name)
-        except Exception as e:
-            echo_error(f"初始化虚拟环境失败: {str(e)}")
-            raise typer.Abort()
-    
+
     try:
-        if name is not None and len(name) > 0:
+        if all:
+            global_state.deploy_conn.pipupgrade(all=True)
+        elif name is not None and len(name) > 0:
             global_state.deploy_conn.pipupgrade(names=name)
         else:
-            global_state.deploy_conn.pipupgrade(all=True)
+            echo_error("请提供希望更新的 pip 包名称。")
+            raise typer.Abort()
     except Exception as e:
         echo_error(f"更新 pip 包失败: {str(e)}")
         raise typer.Abort()
@@ -540,7 +542,9 @@ def venv_outdated():
 
 def server_deploy():
     """「远程」部署项目到远程服务器。"""
-    global_state.deploy_conn.rsync(exclude=global_state.fabic_config.getcfg("RSYNC_EXCLUDE", []))  # type: ignore # noqa: F821
+    global_state.deploy_conn.rsync(
+        exclude=global_state.fabic_config.getcfg("RSYNC_EXCLUDE", [])
+    )  # type: ignore # noqa: F821
     global_state.deploy_conn.put_config(force=True)  # type: ignore # noqa: F821
 
 

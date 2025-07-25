@@ -67,6 +67,7 @@ RSYNC_EXCLUDE = [
     '.git',
     '.pyenv',
     'venv',
+    '.venv',
     '.gitignore',
     'wiki',
     'output',
