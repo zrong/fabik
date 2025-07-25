@@ -289,6 +289,9 @@ NoteForce = Annotated[
 NoteEnvPostfix = Annotated[
     bool, typer.Option(help="在生成的配置文件名称末尾加上环境名称后缀。")
 ]
+NoteReqirementsFileName = Annotated[
+    str, typer.Option(help="指定 requirements.txt 的文件名。")
+]
 
 
 def main_callback(
@@ -443,10 +446,11 @@ def gen_uuid(
 
 def gen_requirements(
     force: NoteForce = False,
+    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
 ):
     """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
     work_dir: Path = global_state.check_work_dir_or_use_cwd()
-    requirements_txt = work_dir / "requirements.txt"
+    requirements_txt = work_dir / requirements_file_name
     if requirements_txt.exists() and not force:
         echo_warning(
             f"{requirements_txt.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。"
@@ -468,9 +472,9 @@ def gen_requirements(
             text=True,
             check=True,
         )
-        echo_info("requirements.txt 文件已成功生成！")
+        echo_info(f"{requirements_txt.absolute().as_posix()} 文件已成功生成！")
     except subprocess.CalledProcessError as e:
-        echo_error(f"生成 requirements.txt 失败: {e.stderr}")
+        echo_error(f"生成 {requirements_txt.absolute().as_posix()} 失败: {e.stderr}")
         raise typer.Abort()
     except FileNotFoundError:
         echo_error("未找到 uv 命令，请确保已安装 uv 工具")
@@ -499,17 +503,31 @@ def venv_update(
         list[str] | None, typer.Argument(help="指定希望更新的 pip 包名称。")
     ] = None,
     init: Annotated[bool, typer.Option(help="是否初始化虚拟环境。")] = False,
-    requirements: Annotated[
-        str, typer.Option(help="指定 requirements.txt 的相对路径。")
-    ] = "requirements.txt",
+    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
 ):
     """「远程」部署远程服务器的虚拟环境。"""
+    if global_state.deploy_conn is None:
+        echo_error("部署连接未初始化，请检查 FABRIC 配置")
+        raise typer.Abort()
+        
     if init:
-        global_state.deploy_conn.init_remote_venv(req_path=requirements)  # type: ignore # noqa: F821
-    if name is not None and len(name) > 0:
-        global_state.deploy_conn.pipupgrade(names=name)  # type: ignore # noqa: F821
-    else:
-        global_state.deploy_conn.pipupgrade(all=True)  # type: ignore # noqa: F821
+        # 初始化时先部署项目文件
+        try:
+            rsync_exclude = global_state.conf_data.get("RSYNC_EXCLUDE", [])
+            global_state.deploy_conn.rsync(exclude=rsync_exclude)
+            global_state.deploy_conn.init_remote_venv(requirements_file_name)
+        except Exception as e:
+            echo_error(f"初始化虚拟环境失败: {str(e)}")
+            raise typer.Abort()
+    
+    try:
+        if name is not None and len(name) > 0:
+            global_state.deploy_conn.pipupgrade(names=name)
+        else:
+            global_state.deploy_conn.pipupgrade(all=True)
+    except Exception as e:
+        echo_error(f"更新 pip 包失败: {str(e)}")
+        raise typer.Abort()
 
 
 def venv_outdated():
@@ -522,7 +540,7 @@ def venv_outdated():
 
 def server_deploy():
     """「远程」部署项目到远程服务器。"""
-    global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"])  # type: ignore # noqa: F821
+    global_state.deploy_conn.rsync(exclude=global_state.fabic_config.getcfg("RSYNC_EXCLUDE", []))  # type: ignore # noqa: F821
     global_state.deploy_conn.put_config(force=True)  # type: ignore # noqa: F821
 
 
@@ -544,7 +562,9 @@ def server_reload():
 def server_dar():
     """「远程」在服务器上部署代码，然后执行重载。也就是 deploy and reload 的组合。"""
     try:
-        global_state.deploy_conn.rsync(exclude=global_state.pyape_conf["RSYNC_EXCLUDE"])  # type: ignore # noqa: F821
+        global_state.deploy_conn.rsync(
+            exclude=global_state.conf_data.get("RSYNC_EXCLUDE", [])
+        )  # type: ignore # noqa: F821
         global_state.deploy_conn.put_config(force=True)  # type: ignore # noqa: F821
         global_state.deploy_conn.reload()  # type: ignore # noqa: F821
     except FabikError as e:
