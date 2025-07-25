@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import string
 import uuid
 
-from fabik.cmd import gen_token, gen_password, gen_fernet_key, gen_uuid
+from fabik.cmd import gen_token, gen_password, gen_fernet_key, gen_uuid, gen_requirements
 from fabik.util import gen as util_gen
 
 
@@ -103,3 +103,62 @@ class TestGenCommands:
         
         # 验证 echo_info 被调用
         mock_echo_info.assert_called_once_with("test_uuid")
+
+    def test_gen_requirements_success(self, mocker):
+        """测试 gen_requirements 命令成功生成 requirements.txt"""
+        # Mock echo_info 函数
+        mock_echo_info = mocker.patch('fabik.cmd.echo_info')
+        # Mock subprocess.run 函数
+        mock_subprocess = mocker.patch('fabik.cmd.subprocess.run')
+        
+        # 执行测试函数
+        gen_requirements()
+        
+        # 验证 subprocess.run 被正确调用
+        mock_subprocess.assert_called_once_with(
+            ["uv", "export", "--format", "requirements-txt", "--output-file", "requirements.txt"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        # 验证 echo_info 被调用
+        mock_echo_info.assert_called_once_with("requirements.txt 文件已成功生成！")
+
+    def test_gen_requirements_subprocess_error(self, mocker):
+        """测试 gen_requirements 命令处理 subprocess 错误"""
+        from subprocess import CalledProcessError
+        
+        # Mock echo_error 函数
+        mock_echo_error = mocker.patch('fabik.cmd.echo_error')
+        # Mock subprocess.run 抛出 CalledProcessError
+        mock_subprocess = mocker.patch('fabik.cmd.subprocess.run')
+        mock_subprocess.side_effect = CalledProcessError(1, "uv", stderr="Command failed")
+        
+        # Mock typer.Abort
+        mock_abort = mocker.patch('fabik.cmd.typer.Abort', side_effect=SystemExit)
+        
+        # 执行测试函数并验证异常
+        with pytest.raises(SystemExit):
+            gen_requirements()
+        
+        # 验证 echo_error 被调用
+        mock_echo_error.assert_called_once_with("生成 requirements.txt 失败: Command failed")
+
+    def test_gen_requirements_uv_not_found(self, mocker):
+        """测试 gen_requirements 命令处理 uv 命令未找到错误"""
+        # Mock echo_error 函数
+        mock_echo_error = mocker.patch('fabik.cmd.echo_error')
+        # Mock subprocess.run 抛出 FileNotFoundError
+        mock_subprocess = mocker.patch('fabik.cmd.subprocess.run')
+        mock_subprocess.side_effect = FileNotFoundError()
+        
+        # Mock typer.Abort
+        mock_abort = mocker.patch('fabik.cmd.typer.Abort', side_effect=SystemExit)
+        
+        # 执行测试函数并验证异常
+        with pytest.raises(SystemExit):
+            gen_requirements()
+        
+        # 验证 echo_error 被调用
+        mock_echo_error.assert_called_once_with("未找到 uv 命令，请确保已安装 uv 工具")
