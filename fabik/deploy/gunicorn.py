@@ -7,6 +7,7 @@ fabik.deploy.gunicorn
 """
 
 from pathlib import Path
+from fabric.connection import Connection
 from invoke.exceptions import Exit
 
 from fabik.deploy import Deploy, logger
@@ -15,8 +16,8 @@ from fabik.deploy import Deploy, logger
 class GunicornDeploy(Deploy):
     """ 使用 Gunicorn 来部署服务
     """
-    def __init__(self, env_name, pyape_conf, conn, work_dir: Path | None = None):
-        super().__init__(env_name, pyape_conf, conn, work_dir)
+    def __init__(self, fabik_conf: dict, work_dir: Path, conn: Connection, env_name: str | None=None):
+        super().__init__(fabik_conf, work_dir, conn, env_name)
 
     def get_pid_file(self):
         """ 使用 pidfile 来判断进程是否启动

@@ -9,6 +9,7 @@ fabik.deploy.uwsgi
 
 from pathlib import Path
 
+from fabric.connection import Connection
 from invoke.exceptions import Exit
 from fabik.deploy import Deploy
 
@@ -16,8 +17,8 @@ from fabik.deploy import Deploy
 class UwsgiDeploy(Deploy):
     """ 使用 uWSGI 来部署服务
     """
-    def __init__(self, env_name, pyape_conf, conn, work_dir: Path | None = None):
-        super().__init__(env_name, pyape_conf, conn, work_dir)
+    def __init__(self, fabik_conf: dict, work_dir: Path, conn: Connection, env_name: str | None=None):
+        super().__init__(fabik_conf, work_dir, conn, env_name)
 
     def get_fifo_file(self):
         """ 使用 master-fifo 来管理进程

@@ -226,6 +226,12 @@ class FabikConfig:
                 self.setcfg(*args[1:], value=value, data=cur_data)
             else:
                 data[arg0] = value
+                
+    def __repr__(self) -> str:
+        return f"""{self.__class__.__name__}
+        (work_dir={self.__work_dir!s}, 
+        fabik_toml={self.fabik_toml!s}, 
+        root_data={self.root_data!s})"""
 
 
 class ConfigWriter:
@@ -393,9 +399,9 @@ class ConfigReplacer:
         self.fabik_name = self.fabik_conf.get("NAME", "fabik")
         self.deploy_dir = Path(self.fabik_conf.get("DEPLOY_DIR", "/srv/app"))
         if not self.deploy_dir.is_absolute():
-            raise FabikError(
+            raise ConfigError(
                 err_type=ValueError(),
-                err_msg="DEPLOY_DIR must be a absolute path!",
+                err_msg=f"DEPLOY_DIR must be a absolute path! Now is {self.deploy_dir}.",
             )
         self.replace_environ = self.get_tpl_value("REPLACE_ENVIRON", merge=False)
 
