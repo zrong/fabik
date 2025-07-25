@@ -413,20 +413,18 @@ class ConfigReplacer:
         :param merge: 是否合并，对于已知的标量，应该选择不合并
         :param wrap_key: 是否做一个包装。如果提供，则会将提供的值作为 key 名，在最终值之上再包装一层
         """
-        # print('='* 20)
-        # print(f'get_tpl_value pyape_conf: {json.dumps(self.pyape_conf)}')
-        # print(f'get_tpl_value env_name: {self.env_name}')
         base_obj = self.fabik_conf.get(tpl_name, None)
         update_obj = self.get_env_value(tpl_name)
-        repl_obj = None
-        # print(f'get_tpl_value tpl_name: {tpl_name}')
-        # print(f'get_tpl_value base_obj: {base_obj}')
-        # print(f'get_tpl_value update_obj: {update_obj}')
+        
+        # 对于非字典类型，强制不使用合并
+        if not isinstance(base_obj, dict) or not isinstance(update_obj, dict):
+            merge = False
+            
         if merge:
             repl_obj = merge_dict(base_obj or {}, update_obj or {})
         else:
             repl_obj = update_obj or base_obj
-        # print(f'get_tpl_value repl_obj: {repl_obj}')
+            
         return {wrap_key: repl_obj} if wrap_key else repl_obj
 
     def replace(self, value: str) -> str:

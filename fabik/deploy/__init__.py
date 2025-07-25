@@ -253,15 +253,49 @@ class Deploy(object):
             raise Exit('venv 还没有创建！请先执行 init_remote_venv')
         return 'source {}/bin/activate'.format(remote_venv_dir)
 
-    def init_remote_venv(self, req_path: str='requirements.txt'):
+    def init_remote_venv(self, requirements_file_name: str):
         """ 创建虚拟环境
         """
         remote_venv_dir = self.get_remote_path('venv')
+        
+        # 检查 Python 是否可用
+        python_check = self.conn.run(f'{self.pye} --version', hide=True, warn=True)
+        if not python_check.ok:
+            raise Exit(f'Python 可执行文件 {self.pye} 未找到或未安装')
+        
+        # 创建虚拟环境（如果不存在）
         if not self.remote_exists(remote_venv_dir):
-            self.conn.run(f'{self.pye} -m venv {remote_venv_dir}')
+            venv_result = self.conn.run(f'{self.pye} -m venv {remote_venv_dir}', warn=True)
+            if not venv_result.ok:
+                # 尝试使用 python3 或 python
+                alt_python = 'python3' if self.pye != 'python3' else 'python'
+                venv_result = self.conn.run(f'{alt_python} -m venv {remote_venv_dir}', warn=True)
+                if not venv_result.ok:
+                    raise Exit(f'创建虚拟环境失败: {venv_result.stderr}')
+        
+        # 检查虚拟环境是否成功创建
+        if not self.remote_exists(f'{remote_venv_dir}/bin/activate'):
+            raise Exit('虚拟环境创建失败，激活脚本不存在')
+            
+        # 确保 pip 可用并更新
         with self.conn.prefix(f'source {remote_venv_dir}/bin/activate'):
-            self.conn.run('pip install -U pip')
-            self.conn.run(f'pip install -r {self.get_remote_path(req_path)}')
+            # 先确保 pip 存在
+            pip_check = self.conn.run('pip --version', hide=True, warn=True)
+            if not pip_check.ok:
+                # 尝试安装 pip
+                self.conn.run('curl https://bootstrap.pypa.io/get-pip.py | python', warn=True)
+            
+            # 更新 pip
+            pip_update = self.conn.run('pip install -U pip', warn=True)
+            if not pip_update.ok:
+                logger.warning('更新 pip 失败，继续执行后续步骤')
+            
+            # 安装 requirements（如果文件存在）
+            req_file = self.get_remote_path(requirements_file_name)
+            if self.remote_exists(req_file):
+                self.conn.run(f'pip install -r {req_file}', warn=True)
+            else:
+                logger.warning(f'未找到 requirements 文件: {req_file}')
 
     def piplist(self, format='columns'):
         """ 获取虚拟环境中的所有安装的 python 模块
@@ -320,7 +354,21 @@ class Deploy(object):
             if localr is not None and localr.ok:
                 logger.warning(f'删除本地临时文件 {final_file.as_posix()}')
             
-    def put_config(self, files: dict[str, str], force: bool=False) -> None:
+    def put_config(self, files: dict[str, str] | None = None, force: bool=False) -> None:
+        """上传配置文件到远程服务器
+        
+        :param files: 要上传的配置文件字典，如果为None则使用默认配置文件
+        :param force: 是否强制覆盖已存在的文件
+        """
+        if files is None:
+            # 默认上传常用配置文件
+            default_files = {
+                '.env': '.env',
+                'gunicorn.conf.py': 'gunicorn.conf.py',
+                'config.toml': 'config.toml'
+            }
+            files = default_files
+            
         for tpl_name in files.keys():
             self.put_tpl(tpl_name, force)
 
