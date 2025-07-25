@@ -17,6 +17,7 @@ import shutil
 import tomllib
 import tomli_w
 import json
+import typer
 
 import fabik
 from fabik.error import (
@@ -497,3 +498,39 @@ replace_obj: {replace_obj}.""",
         if immediately:
             self.writer.write_file(force)
         return target, final_target
+
+
+def check_none(value: Any, key_list: list[str]) -> Any:
+    if value is None:
+        echo_error(f'Key "{key_list!s}" not found in config.')
+        raise typer.Abort()
+    return value
+
+
+def check_path_exists(p: Path) -> bool:
+    if not p.is_absolute():
+        echo_error(f"{p!s} is not a absolute path.")
+        raise typer.Exit()
+    if not p.exists():
+        echo_error(f"{p!s} is not a exists path.")
+        raise typer.Exit()
+    return True
+
+
+# 默认验证器函数
+def config_validator_name_workdir(config: FabikConfig) -> bool:
+    """检查 NAME 和 work_dir 是否存在"""
+    keys = (["NAME"], ["PATH", "work_dir"])
+    for key_list in keys:
+        value = check_none(config.getcfg(*key_list), key_list)
+        if key_list[-1] == "work_dir":
+            check_path_exists(Path(value))
+    return True
+
+
+def config_validator_tpldir(config: FabikConfig) -> bool:
+    """默认的配置验证逻辑，检查必要的配置项是否存在"""
+    key_list = ["PATH", "tpl_dir"]
+    value = check_none(config.getcfg(*key_list), key_list)
+    check_path_exists(Path(value))
+    return True
