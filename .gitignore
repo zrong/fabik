@@ -19,3 +19,6 @@ wheels/
 /gunicorn.conf.py
 /gunicorn.conf.py.bak*
 /requirements.txt
+
+# Sphinx documentation
+docs/_build/
