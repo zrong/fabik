@@ -1,0 +1,48 @@
+# GitHub Actions 工作流示例
+# 由于权限限制，此文件作为参考，需要手动创建到 .github/workflows/ 目录
+
+name: Documentation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[doc]
+    
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+    
+    - name: Check documentation
+      run: |
+        cd docs
+        make linkcheck
+    
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: docs/_build/html/
+
+# 使用说明：
+# 1. 如果需要启用 GitHub Actions，请手动将此文件复制到 .github/workflows/docs.yml
+# 2. 或者在 GitHub 网页界面直接创建工作流文件
+# 3. 确保 Personal Access Token 具有 workflow 权限
