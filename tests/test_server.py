@@ -12,7 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 # 导入 CLI 应用
-from fabik.cli import cli
+from fabik.cli import main as cli
 from fabik.cmd import global_state
 
 
@@ -133,8 +133,7 @@ bind = '127.0.0.1:5000'
         result = runner.invoke(cli, ["venv", "update", "--help"], catch_exceptions=False)
         assert result.exit_code == 0
         assert "部署远程服务器的虚拟环境" in result.output
-        assert "--init" in result.output
-        assert "--requirements-file-name" in result.output
+        assert "--all" in result.output
 
     def test_venv_outdated_help(self, runner: CliRunner):
         """测试 venv outdated 命令帮助"""
@@ -228,57 +227,45 @@ bind = '127.0.0.1:5000'
         """测试帮助信息一致性"""
         # 测试所有帮助信息都包含中文
         commands = [
-            ["server"],
-            ["venv"],
-            ["server", "deploy"],
-            ["server", "start"],
-            ["server", "stop"],
-            ["server", "reload"],
-            ["server", "dar"],
-            ["venv", "update"],
-            ["venv", "outdated"],
+            ["--help"],
+            ["server", "--help"],
+            ["venv", "--help"],
+            ["server", "deploy", "--help"],
+            ["server", "start", "--help"],
+            ["server", "stop", "--help"],
+            ["server", "reload", "--help"],
+            ["server", "dar", "--help"],
+            ["venv", "init", "--help"],
+            ["venv", "update", "--help"],
+            ["venv", "outdated", "--help"],
         ]
         
         for cmd in commands:
-            result = runner.invoke(cli, cmd + ["--help"], catch_exceptions=False)
+            result = runner.invoke(cli, cmd, catch_exceptions=True)
             assert result.exit_code == 0
             assert len(result.output) > 0
 
     def test_server_subcommands_registration(self):
         """测试服务器子命令注册"""
-        # 获取服务器命令组
-        server_group = None
-        for cmd in cli.registered_commands:
-            if cmd.name == "server":
-                server_group = cmd
-                break
+        # 使用 Typer 的测试方式
+        result = CliRunner().invoke(cli, ["server", "--help"])
+        assert result.exit_code == 0
         
-        assert server_group is not None, "server 命令组应该存在"
-        
-        # 检查服务器子命令
-        server_commands = [sub.name for sub in server_group.registered_commands]
+        # 检查服务器子命令是否存在
         expected_server_cmds = ["deploy", "start", "stop", "reload", "dar"]
-        
-        for cmd in expected_server_cmds:
-            assert cmd in server_commands, f"服务器子命令 {cmd} 应该存在"
+        for cmd_name in expected_server_cmds:
+            assert cmd_name in result.output, f"服务器子命令 {cmd_name} 应该存在"
 
     def test_venv_subcommands_registration(self):
         """测试 venv 子命令注册"""
-        # 获取 venv 命令组
-        venv_group = None
-        for cmd in cli.registered_commands:
-            if cmd.name == "venv":
-                venv_group = cmd
-                break
+        # 使用 Typer 的测试方式
+        result = CliRunner().invoke(cli, ["venv", "--help"])
+        assert result.exit_code == 0
         
-        assert venv_group is not None, "venv 命令组应该存在"
-        
-        # 检查 venv 子命令
-        venv_commands = [sub.name for sub in venv_group.registered_commands]
-        expected_venv_cmds = ["update", "outdated"]
-        
-        for cmd in expected_venv_cmds:
-            assert cmd in venv_commands, f"venv 子命令 {cmd} 应该存在"
+        # 检查 venv 子命令是否存在
+        expected_venv_cmds = ["init", "update", "outdated"]
+        for cmd_name in expected_venv_cmds:
+            assert cmd_name in result.output, f"venv 子命令 {cmd_name} 应该存在"
 
     def test_gen_requirements_command(self, runner: CliRunner):
         """测试 gen requirements 命令"""
@@ -293,12 +280,28 @@ bind = '127.0.0.1:5000'
             test_dir = Path(temp_dir) / "test_project"
             test_dir.mkdir()
             
+            # 创建基本的 fabik.toml 文件
+            fabik_toml = test_dir / "fabik.toml"
+            fabik_toml.write_text('''
+NAME = 'test_project'
+PYE = 'python3'
+DEPLOY_DIR = '/srv/app/test_project'
+
+[PATH]
+work_dir = "/tmp/test"
+tpl_dir = "/tmp/test/tpls"
+
+[FABRIC]
+host = 'localhost'
+user = 'test'
+''')
+            
             result = runner.invoke(cli, [
                 "--cwd", str(test_dir),
                 "venv", "update", "--help"
-            ], catch_exceptions=False)
+            ], catch_exceptions=True)
             assert result.exit_code == 0
-            assert "--requirements-file-name" in result.output
+            assert "--all" in result.output
 
     def test_deployment_class_options(self, runner: CliRunner):
         """测试部署类选项"""
