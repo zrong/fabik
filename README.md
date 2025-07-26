@@ -12,6 +12,4 @@ fabik uses libraries including Fabric/Click/Jinja2/cryptography/python-dotenv/ht
 
 The idea for fabik comes from my previously created [pyape](https://pypi.org/project/pyape/#description) project. pyape is a Python web server development framework that includes numerous functionalities for deployment, configuration file processing, and command-line management. I've separated these features to create fabik, making it easier for more projects to directly reference them.
 
-For more information about the pyape project, read the documentation: <https://pyape.rtfd.io/>.
-
-Project source code: <https://github.com/zrong/pyape>.
+For more information about the fabik project, read the documentation: <https://pyape.rtfd.io/>.
