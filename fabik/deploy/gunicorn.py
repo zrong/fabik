@@ -1,4 +1,4 @@
-""" .._fabik_deploy_gunicorn:
+""" .. _fabik_deploy_gunicorn:
 
 fabik.deploy.gunicorn
 ~~~~~~~~~~~~~~~~~~~~~~

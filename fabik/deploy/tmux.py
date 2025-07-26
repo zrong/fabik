@@ -1,4 +1,4 @@
-""" .._fabik_deploy_tmux:
+""" .. _fabik_deploy_tmux:
 
 fabik.deploy.tmux
 ~~~~~~~~~~~~~~~~~~~

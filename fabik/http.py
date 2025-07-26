@@ -1,4 +1,4 @@
-""" .._fabik_http:
+""" .. _fabik_http:
 
 fabik.http
 ----------------------

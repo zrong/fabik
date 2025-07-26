@@ -1,5 +1,6 @@
-"""
-pyape.builder.fabric
+""" .. _fabik_deploy:
+
+fabik.deploy
 ~~~~~~~~~~~~~~~~~~~
 
 封装 fabric 的功能，提供远程部署能力。
