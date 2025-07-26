@@ -1,9 +1,9 @@
 """
 fabik is a library for Python command line application.
-~~~~~~~~~~~~~~~~~~~
+-----------------------
 """
 
-__version__ = '0.1.0'
+__version__ = '25.7.1'
 __author__ = 'zrong'
 __name__ = 'fabik'
 __email__ = 'zrongzrong@gmail.com'
