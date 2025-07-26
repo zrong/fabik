@@ -9,64 +9,26 @@ API 参考
 主模块
 ------
 
-.. automodule:: fabik
+.. automodule:: fabik.cmd
    :members:
-   :undoc-members:
-   :show-inheritance:
 
-模块结构
---------
+.. automodule:: fabik.conf
+   :members:
 
-fabik 包含以下主要模块：
+.. automodule:: fabik.http
+   :members:
 
-配置模块 (fabik.config)
-~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: fabik.log
+   :members:
 
-负责配置文件的加载、解析和管理。
+.. automodule:: fabik.error
+   :members:
 
-- 支持 TOML 格式配置文件
-- 多环境配置支持
-- 环境变量替换
-- 配置模板系统
+.. automodule:: fabik.deploy
+   :members:
 
-命令行模块 (fabik.cli)
-~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: fabik.deploy.gunicorn
+   :members:
 
-提供命令行界面和工具。
-
-- 基于 Click 和 Typer 的命令行工具
-- 配置管理命令
-- 环境切换命令
-- 部署相关命令
-
-部署模块 (fabik.deploy)
-~~~~~~~~~~~~~~~~~~~~~~~
-
-基于 Fabric 的远程部署功能。
-
-- 远程服务器连接
-- 文件传输和同步
-- 服务管理
-- 部署脚本执行
-
-加密模块 (fabik.crypto)
-~~~~~~~~~~~~~~~~~~~~~~~
-
-配置文件加密和安全功能。
-
-- 配置文件加密/解密
-- 密钥管理
-- 安全存储
-
-工具模块 (fabik.utils)
-~~~~~~~~~~~~~~~~~~~~~~
-
-通用工具函数和辅助功能。
-
-- 文件操作工具
-- 字符串处理
-- 日期时间工具
-- 其他实用函数
-
-.. note::
-   详细的 API 文档将在各模块实现后通过 autodoc 自动生成。
+.. automodule:: fabik.deploy.uwsgi
+   :members:

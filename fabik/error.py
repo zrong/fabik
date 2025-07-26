@@ -1,7 +1,7 @@
-""" .._fabik_error:
+""" .. _fabik_error:
 
 fabik.error
-~~~~~~~~~~~~~~~~~~~
+----------------------
 
 错误处理。
 """
@@ -46,19 +46,23 @@ class EnvError(FabikError):
 
 
 def echo(value:Any, *, panel_title:str | None=None, style:Style | str | None=None):
+    """  调用 console.print 输出信息。"""
     if panel_title:
         value = Panel(value, title=panel_title, title_align='left')
     console.print(value, style=style)
     
 
 def echo_info(value: Any, *, panel_title:str | None=None):
+    """ 输出信息。"""
     echo(value, panel_title=panel_title)
 
 
 def echo_warning(value: Any, *, panel_title:str | None=None):
+    """ 输出警告。"""
     echo(value, panel_title=panel_title, style='yellow')
 
 
 def echo_error(value: Any, *, panel_title:str | None=None):
+    """ 输出错误。"""
     echo(value, panel_title=panel_title, style='red')
     

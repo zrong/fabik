@@ -1,7 +1,7 @@
 """
-.. _fabik_logging:
+.. _fabik_log:
 
-fabik.logging
+fabik.log
 -------------------
 
 提供 logging 支持
