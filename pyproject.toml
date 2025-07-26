@@ -25,3 +25,9 @@ dev = [
     "pytest>=8.4.1",
     "pytest-mock>=3.14.1",
 ]
+doc = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "recommonmark>=0.7.1",
+    "rstcheck>=6.0.0",
+]

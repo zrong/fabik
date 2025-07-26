@@ -104,7 +104,7 @@ fabik/
 
 项目使用 Cursor 规则文件来指导开发，这些文件包含了项目特定的编码规范和最佳实践：
 
-- [项目结构规则](.cursor/rules/project-structure.mdc)
-- [Pytest 规则](.cursor/rules/pytest.mdc)
-- [Python 编码风格规则](.cursor/rules/python-style.mdc)
-- [Typer CLI 规范](.cursor/rules/typer.mdc)
+- [项目结构规则](.rules/project-structure.mdc)
+- [Pytest 规则](.rules/pytest.mdc)
+- [Python 编码风格规则](.rules/python-style.mdc)
+- [Typer CLI 规范](.rules/typer.mdc)
