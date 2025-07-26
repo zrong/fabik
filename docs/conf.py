@@ -15,6 +15,27 @@ from pathlib import Path
 import sys
 sys.path.insert(0, Path.cwd().parent.as_posix())
 
+# 添加模块模拟，解决依赖导入问题
+autodoc_mock_imports = [
+    'cryptography',
+    'tomli_w',
+    'httpx',
+    'invoke',
+    'fabric',
+]
+
+# Configuration file for the Sphinx documentation builder.
+#
+# This file only contains a selection of the most common options. For a full
+# list see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+# -- Path setup --------------------------------------------------------------
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here. If the directory is relative to the
+# documentation root, use os.path.abspath to make it absolute, like shown here.
+#
 
 # -- Project information -----------------------------------------------------
 
@@ -23,7 +44,7 @@ copyright = '2025, zrong'
 author = 'zrong'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
+release = '25.7.1'
 
 
 # -- General configuration ---------------------------------------------------

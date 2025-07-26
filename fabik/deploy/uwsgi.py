@@ -1,4 +1,4 @@
-""" .._fabik_deploy_uwsgi:
+""" .. _fabik_deploy_uwsgi:
 
 fabik.deploy.uwsgi
 ~~~~~~~~~~~~~~~~~~~
