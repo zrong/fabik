@@ -1,0 +1,223 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FABIK 文档 &mdash; FABIK 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/translations.js?v=beaddf03"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="使用说明" href="usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            FABIK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">目录:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">使用说明</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">配置管理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="command.html">命令行工具</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">开发指南</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API 参考</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">FABIK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">FABIK 文档</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="fabik">
+<h1>FABIK 文档<a class="headerlink" href="#fabik" title="Link to this heading"></a></h1>
+<p>FABIK <code class="docutils literal notranslate"><span class="pre">/ˈfæbɪk/</span></code> = Fabric + Click</p>
+<p>Fabik 是一个 Python 命令行项目的基础包，封装了命令行项目的常用功能，具体如下：</p>
+<ul class="simple">
+<li><p>使用 TOML 配置文件解决配置管理问题。</p></li>
+<li><p>多环境配置、默认值替换、环境变量读取和路径管理。</p></li>
+<li><p>配置模板支持。</p></li>
+<li><p>多开发环境支持。</p></li>
+<li><p>使用 Fabric 进行远程项目部署。</p></li>
+</ul>
+<p>fabik 使用的库包括 Fabric/Click/Jinja2/cryptography/python-dotenv/httpx/itdangerous 等。</p>
+<p>fabik 的想法来自我之前创建的 <a class="reference external" href="https://pypi.org/project/pyape/#description">pyape</a> 项目。pyape 是一个 Python Web 服务器开发框架，包含了大量的部署、配置文件处理和命令行管理功能。我将这些功能分离出来创建了 fabik，使其更容易被更多项目直接引用。</p>
+<p>有关 pyape 项目的更多信息，请阅读文档：<a class="reference external" href="https://pyape.rtfd.io/">https://pyape.rtfd.io/</a></p>
+<p>项目源代码：<a class="reference external" href="https://github.com/zrong/pyape">https://github.com/zrong/pyape</a></p>
+<p><strong>FABIK 的特点如下：</strong></p>
+<section id="toml">
+<h2>TOML 配置文件管理<a class="headerlink" href="#toml" title="Link to this heading"></a></h2>
+<p>使用 TOML 格式的配置文件，提供清晰、易读的配置管理方案。支持配置文件的层级结构和模板化配置。</p>
+</section>
+<section id="id1">
+<h2>多环境配置支持<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<p>可配置多套开发环境，方便同时支持本地开发、测试环境和生产环境部署。不同环境可以有不同的配置参数。</p>
+</section>
+<section id="id2">
+<h2>环境变量集成<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<p>支持从环境变量中读取配置值，避免将敏感信息（如密码、API 密钥）直接写入配置文件，提高安全性。</p>
+</section>
+<section id="id3">
+<h2>命令行工具集成<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<p>基于 Click 和 Typer 构建强大的命令行界面，提供统一的命令行工具来管理项目的各种操作。</p>
+</section>
+<section id="id4">
+<h2>远程部署支持<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
+<p>集成 Fabric 库，支持远程服务器部署和管理，简化项目的部署流程。</p>
+</section>
+<section id="id5">
+<h2>模板系统<a class="headerlink" href="#id5" title="Link to this heading"></a></h2>
+<p>基于 Jinja2 的模板系统，支持配置文件模板化，可以根据不同环境生成相应的配置文件。</p>
+</section>
+<section id="id6">
+<h2>加密支持<a class="headerlink" href="#id6" title="Link to this heading"></a></h2>
+<p>集成 cryptography 库，提供配置文件加密和解密功能，保护敏感配置信息。</p>
+</section>
+<section id="http">
+<h2>HTTP 客户端<a class="headerlink" href="#http" title="Link to this heading"></a></h2>
+<p>集成 httpx 库，提供现代化的 HTTP 客户端功能，支持异步和同步操作。</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">目录:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">使用说明</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#id2">安装</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#id3">快速开始</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#id7">基本概念</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">配置管理</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id2">配置文件格式</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id4">多环境配置</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id5">环境变量替换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id6">配置文件模板</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id7">配置加载</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id8">配置访问</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id9">配置验证</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#id10">配置文件示例</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="command.html">命令行工具</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id2">基本用法</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id3">配置管理命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id7">环境管理命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id11">部署命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id15">项目管理命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id18">开发工具命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id22">加密工具命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id25">实用工具命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id28">配置文件示例</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id29">自定义命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="command.html#id30">命令别名</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">开发指南</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id2">开发环境搭建</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id6">项目结构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id7">代码规范</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id10">测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id14">文档</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id17">调试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id21">发布流程</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id24">持续集成</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#id26">贡献指南</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API 参考</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#fabik-is-a-library-for-python-command-line-application">fabik is a library for Python command line application.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#id1">配置模块</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#id2">命令行模块</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#id3">部署模块</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#id4">加密模块</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#id5">工具模块</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+<section id="id7">
+<h1>索引和表格<a class="headerlink" href="#id7" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">索引</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">模块索引</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">搜索页面</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="页脚">
+        <a href="usage.html" class="btn btn-neutral float-right" title="使用说明" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2025, zrong。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>使用说明 &mdash; FABIK 0.1.0 文档</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d786bb5c"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/translations.js?v=beaddf03"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="配置管理" href="configuration.html" />
+    <link rel="prev" title="FABIK 文档" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            FABIK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="搜索文档" aria-label="搜索文档" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="导航菜单">
+              <p class="caption" role="heading"><span class="caption-text">目录:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">使用说明</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id2">安装</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">快速开始</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id4">1. 创建项目配置文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">2. 使用命令行工具</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">3. 在代码中使用</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id7">基本概念</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id8">配置文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id9">环境管理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">命令行工具</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id11">远程部署</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">配置管理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="command.html">命令行工具</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">开发指南</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API 参考</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="移动版导航菜单" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">FABIK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="页面导航">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">使用说明</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/usage.rst.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="id1">
+<h1>使用说明<a class="headerlink" href="#id1" title="Link to this heading"></a></h1>
+<section id="id2">
+<h2>安装<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<p>使用 pip 安装 fabik：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>fabik
+</pre></div>
+</div>
+<p>或者从源代码安装：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zrong/fabik.git
+<span class="nb">cd</span><span class="w"> </span>fabik
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h2>快速开始<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<section id="id4">
+<h3>1. 创建项目配置文件<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<p>fabik 使用 TOML 格式的配置文件。在项目根目录创建 <code class="docutils literal notranslate"><span class="pre">fabik.toml</span></code> 文件：</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[project]</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my-project&quot;</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;1.0.0&quot;</span>
+
+<span class="k">[environments.development]</span>
+<span class="n">debug</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">database_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sqlite:///dev.db&quot;</span>
+
+<span class="k">[environments.production]</span>
+<span class="n">debug</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">database_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${DATABASE_URL}&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h3>2. 使用命令行工具<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<p>fabik 提供了丰富的命令行工具：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 查看配置</span>
+fabik<span class="w"> </span>config<span class="w"> </span>show
+
+<span class="c1"># 切换环境</span>
+fabik<span class="w"> </span>env<span class="w"> </span><span class="nb">set</span><span class="w"> </span>production
+
+<span class="c1"># 部署到远程服务器</span>
+fabik<span class="w"> </span>deploy
+</pre></div>
+</div>
+</section>
+<section id="id6">
+<h3>3. 在代码中使用<a class="headerlink" href="#id6" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fabik</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+
+<span class="c1"># 加载配置</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;fabik.toml&#39;</span><span class="p">)</span>
+
+<span class="c1"># 获取配置值</span>
+<span class="n">debug</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;debug&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+<span class="n">database_url</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;database_url&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="id7">
+<h2>基本概念<a class="headerlink" href="#id7" title="Link to this heading"></a></h2>
+<section id="id8">
+<h3>配置文件<a class="headerlink" href="#id8" title="Link to this heading"></a></h3>
+<p>fabik 使用 TOML 格式的配置文件，支持：</p>
+<ul class="simple">
+<li><p>层级配置结构</p></li>
+<li><p>环境变量替换</p></li>
+<li><p>多环境配置</p></li>
+<li><p>配置模板</p></li>
+</ul>
+</section>
+<section id="id9">
+<h3>环境管理<a class="headerlink" href="#id9" title="Link to this heading"></a></h3>
+<p>fabik 支持多环境配置，可以为不同的部署环境（开发、测试、生产）设置不同的配置参数。</p>
+</section>
+<section id="id10">
+<h3>命令行工具<a class="headerlink" href="#id10" title="Link to this heading"></a></h3>
+<p>fabik 提供统一的命令行界面，集成了项目管理的各种常用操作。</p>
+</section>
+<section id="id11">
+<h3>远程部署<a class="headerlink" href="#id11" title="Link to this heading"></a></h3>
+<p>基于 Fabric 的远程部署功能，支持自动化部署到远程服务器。</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="页脚">
+        <a href="index.html" class="btn btn-neutral float-left" title="FABIK 文档" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="configuration.html" class="btn btn-neutral float-right" title="配置管理" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2025, zrong。</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用的 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a> 开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
