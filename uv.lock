@@ -242,8 +242,7 @@ wheels = [
 
 [[package]]
 name = "fabik"
-version = "2025.0.26"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "cryptography" },
