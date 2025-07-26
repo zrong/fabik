@@ -3,47 +3,70 @@ API 参考
 
 本文档提供 fabik 包的完整 API 参考。
 
+.. note::
+   API 文档将在模块开发完成后自动生成。目前项目处于初期开发阶段。
+
+主模块
+------
+
 .. automodule:: fabik
    :members:
    :undoc-members:
    :show-inheritance:
 
-配置模块
+模块结构
 --------
 
-.. automodule:: fabik.config
-   :members:
-   :undoc-members:
-   :show-inheritance:
+fabik 包含以下主要模块：
 
-命令行模块
-----------
+配置模块 (fabik.config)
+~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: fabik.cli
-   :members:
-   :undoc-members:
-   :show-inheritance:
+负责配置文件的加载、解析和管理。
 
-部署模块
---------
+- 支持 TOML 格式配置文件
+- 多环境配置支持
+- 环境变量替换
+- 配置模板系统
 
-.. automodule:: fabik.deploy
-   :members:
-   :undoc-members:
-   :show-inheritance:
+命令行模块 (fabik.cli)
+~~~~~~~~~~~~~~~~~~~~~~
 
-加密模块
---------
+提供命令行界面和工具。
 
-.. automodule:: fabik.crypto
-   :members:
-   :undoc-members:
-   :show-inheritance:
+- 基于 Click 和 Typer 的命令行工具
+- 配置管理命令
+- 环境切换命令
+- 部署相关命令
 
-工具模块
---------
+部署模块 (fabik.deploy)
+~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: fabik.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
+基于 Fabric 的远程部署功能。
+
+- 远程服务器连接
+- 文件传输和同步
+- 服务管理
+- 部署脚本执行
+
+加密模块 (fabik.crypto)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+配置文件加密和安全功能。
+
+- 配置文件加密/解密
+- 密钥管理
+- 安全存储
+
+工具模块 (fabik.utils)
+~~~~~~~~~~~~~~~~~~~~~~
+
+通用工具函数和辅助功能。
+
+- 文件操作工具
+- 字符串处理
+- 日期时间工具
+- 其他实用函数
+
+.. note::
+   详细的 API 文档将在各模块实现后通过 autodoc 自动生成。
