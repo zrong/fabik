@@ -70,7 +70,7 @@ def gen_requirements(
     # 确定输出文件路径
     if output_file is not None:
         # 使用指定的输出文件路径
-        requirements_txt_file = global_state.check_output_file(output_file)
+        requirements_txt_file = global_state.check_output_file(output_file, is_file=True)
     else:
         # 使用默认逻辑
         work_dir: Path = global_state.check_work_dir_or_use_cwd()

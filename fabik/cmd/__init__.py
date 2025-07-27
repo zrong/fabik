@@ -109,24 +109,33 @@ class GlobalState:
             pass
         return self.cwd
     
-    def check_output_file(self, output_file: Path) -> Path:
-        """ 检测输出文件是否可写。"""
+    def check_output_file(self, output_file: Path, is_file: bool=True) -> Path:
+        """ 检测输出文件或者文件夹是否可写。"""
         # 使用指定的输出文件路径
         file = Path(output_file).resolve().absolute()
         
-        if file.is_dir():
-            echo_error(f"{file.absolute().as_posix()} 必须是一个文件。")
-            raise typer.Exit()
+        if is_file:
+            if file.is_dir():
+                echo_error(f"{file.absolute().as_posix()} 必须是一个文件。")
+                raise typer.Exit()
+
+            # 检查父目录是否存在且可写
+            parent_dir = file.parent
+            if not parent_dir.exists():
+                echo_error(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
+                raise typer.Exit()
             
-        # 检查父目录是否存在且可写
-        parent_dir = file.parent
-        if not parent_dir.exists():
-            echo_error(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
-            raise typer.Exit()
-        
-        if not parent_dir.is_dir():
-            echo_error(f"{parent_dir.absolute().as_posix()} 不是一个目录。")
-            raise typer.Exit()
+            if not parent_dir.is_dir():
+                echo_error(f"{parent_dir.absolute().as_posix()} 不是一个文件夹。")
+                raise typer.Exit()
+        else:
+            if not file.is_dir():
+                echo_error(f"{file.absolute().as_posix()} 必须是一个文件夹。")
+                raise typer.Exit()
+            if not file.exists():
+                echo_error(f"{file.absolute().as_posix()} 不存在。")
+                raise typer.Exit()
+            
         return file
 
     def load_conf_data(
