@@ -18,7 +18,6 @@ from fabric.connection import Connection
 from invoke.exceptions import Exit
 
 from fabik.conf import ConfigReplacer
-from fabik.error import FabikError, echo_error
 
 logger = logging.Logger('fabric', level=logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))

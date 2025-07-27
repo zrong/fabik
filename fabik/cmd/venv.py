@@ -1,4 +1,10 @@
-"""venv 子命令相关函数"""
+""" .. _fabik_cmd_venv:
+
+fabik.cmd.venv
+~~~~~~~~~~~~~~~~~~~~~~
+
+venv 子命令相关函数
+"""
 
 import typer
 from typing import Annotated

@@ -1,4 +1,11 @@
-"""conf 子命令相关函数"""
+""" .. _fabik_cmd_conf:
+
+fabik.cmd.conf
+~~~~~~~~~~~~~~~~~~~~~~
+
+conf 子命令相关函数
+"""
+
 
 import typer
 from typing import Annotated

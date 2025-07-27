@@ -1,4 +1,10 @@
-"""gen 子命令相关函数"""
+""" .. _fabik_cmd_gen:
+
+fabik.cmd.gen
+~~~~~~~~~~~~~~~~~~~~~~
+
+gen 子命令相关函数
+"""
 
 import typer
 from typing import Annotated

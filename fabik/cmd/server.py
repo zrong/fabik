@@ -1,4 +1,10 @@
-"""server 子命令相关函数"""
+""" .. _fabik_cmd_server:
+
+fabik.cmd.server
+~~~~~~~~~~~~~~~~~~~~~~
+
+server 子命令相关函数
+"""
 
 from fabik.error import echo_error, FabikError
 import typer
