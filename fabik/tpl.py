@@ -105,3 +105,20 @@ tpl_dir = "/Users/zrong/tool/my_new_tool/tpls"
 
 """
 """ This is a template for fabik main config file. """
+
+SYSTEMD_USER_UNIT_SERVICE_TPL = """
+[Unit]
+Description={{ NAME }}
+Wants=network.target network-online.target
+After=network.target network-online.target
+
+[Service]
+ExecStart={{ exec }}
+WorkingDirectory={{ work_dir }}
+LimitNOFILE=500000
+LimitNPROC=500000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+"""
