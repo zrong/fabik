@@ -11,6 +11,7 @@ from typing import Annotated
 from enum import StrEnum
 
 from fabik.error import echo_error
+from fabik.cmd import global_state
 
 
 class DeployClassName(StrEnum):
@@ -21,9 +22,6 @@ class DeployClassName(StrEnum):
 NoteReqirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
-
-
-from fabik.cmd import global_state
 
 
 def server_callback(

@@ -13,6 +13,7 @@ alwaysApply: true
 - 项目配置在 `pyproject.toml` 中定义
 - 项目的主配置文件为 `fabik.toml`。
 - 项目的虚拟环境在 `.venv/` 文件夹中。
+- 项目范例配置文件在 `samples/` 文件夹中。
 
 # fabik 命令行调用
 
@@ -27,10 +28,15 @@ alwaysApply: true
 - 使用 `uv` 作为包发布工具。
 - 使用 `uv run fabik` 来运行项目的命令行。
 - 使用 `pytest` 作为测试工具。
-- 在使用 `pytest` 执行测试时，使用 `tests/fabik.toml` 作为主配置文件。
+- 在使用 `pytest` 执行测试时，使用 `samples/fabik.toml` 作为主配置文件。
 
 # 项目依赖管理
 
 - 不要创建 `requirements.txt`。
 - 对于项目正常使用过程中的依赖项，总是使用 `uv add` 来添加。
 - 对于只在开发过程中使用的依赖项，例如测试工具、文档工具，总是使用 `uv add --dev` 来添加。
+
+# git 提交信息规范
+
+- 除非明确告知需要提交，否则不要自动提交仓库。
+- 当被明确告知 需要提交到 git 仓库时，请基于项目修改，提供详细的 commit message。

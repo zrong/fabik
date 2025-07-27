@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fabik.conf import config_validator_tpldir
 from fabik.error import echo_error
-
+from fabik.cmd import global_state
 
 NoteForce = Annotated[
     bool, typer.Option("--force", "-f", help="Force to overwrite the existing file.")
@@ -21,9 +21,6 @@ NoteForce = Annotated[
 NoteEnvPostfix = Annotated[
     bool, typer.Option(help="在生成的配置文件名称末尾加上环境名称后缀。")
 ]
-
-
-from fabik.cmd import global_state
 
 
 def conf_callback(

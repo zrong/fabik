@@ -6,10 +6,9 @@ fabik.cmd.server
 server 子命令相关函数
 """
 
-from fabik.error import echo_error, FabikError
 import typer
 
-
+from fabik.error import echo_error, FabikError
 from fabik.cmd import global_state
 
 

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from fabik import util
 from fabik.error import echo_info, echo_warning, echo_error
+from fabik.cmd import global_state
 
 
 class UUIDType(StrEnum):
@@ -27,9 +28,6 @@ NoteForce = Annotated[
 NoteReqirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
-
-
-from fabik.cmd import global_state
 
 
 def gen_password(

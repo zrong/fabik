@@ -14,7 +14,7 @@ import jinja2
 import fabik
 from fabik import tpl
 from fabik.conf import FabikConfig
-from fabik.error import echo_error, echo_info, echo_warning
+from fabik.error import echo_error, echo_info, echo_warning, FabikError
 from fabik.cmd import global_state, NoteForce
 
 def main_callback(
