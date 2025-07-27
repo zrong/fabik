@@ -436,49 +436,13 @@ def conf_make(
         )
 
 
-def gen_requirements(
-    force: NoteForce = False,
-    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
-):
-    """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
-    work_dir: Path = global_state.check_work_dir_or_use_cwd()
-    requirements_txt = work_dir / requirements_file_name
-    if requirements_txt.exists() and not force:
-        echo_warning(
-            f"{requirements_txt.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。"
-        )
-        raise typer.Exit()
-    try:
-        # 执行 uv export 命令生成 requirements.txt
-        subprocess.run(
-            [
-                "uv",
-                "export",
-                "--format",
-                "requirements-txt",
-                "--no-hashes",
-                "--output-file",
-                f"{requirements_txt.absolute().as_posix()}",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        echo_info(f"{requirements_txt.absolute().as_posix()} 文件已成功生成！")
-    except subprocess.CalledProcessError as e:
-        echo_error(f"生成 {requirements_txt.absolute().as_posix()} 失败: {e.stderr}")
-        raise typer.Abort()
-    except FileNotFoundError:
-        echo_error("未找到 uv 命令，请确保已安装 uv 工具")
-        raise typer.Abort()
-
-
 # 从子模块导入函数
 from fabik.cmd.gen import (
     gen_password,
     gen_fernet_key,
     gen_token,
     gen_uuid,
+    gen_requirements,
 )
 
 from fabik.cmd.venv import (
