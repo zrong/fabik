@@ -286,7 +286,7 @@ NoteReqirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
 NoteOutputFile = Annotated[
-    Path, typer.Option("--output", "-o", help="指定输出的文件名。")
+    Path | None, typer.Option("--output", "-o", help="指定输出文件的绝对路径。")
 ]
 
 

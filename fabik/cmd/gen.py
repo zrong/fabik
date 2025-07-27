@@ -28,6 +28,9 @@ NoteForce = Annotated[
 NoteReqirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
+NoteOutputFile = Annotated[
+    Path | None, typer.Option(help="指定输出文件的完整路径。")
+]
 
 
 def gen_password(
@@ -61,15 +64,45 @@ def gen_uuid(
 def gen_requirements(
     force: NoteForce = False,
     requirements_file_name: NoteReqirementsFileName = "requirements.txt",
+    output_file: NoteOutputFile = None,
 ):
     """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
-    work_dir: Path = global_state.check_work_dir_or_use_cwd()
-    requirements_txt = work_dir / requirements_file_name
+    # 确定输出文件路径
+    if output_file is not None:
+        # 使用指定的输出文件路径
+        requirements_txt = Path(output_file).resolve()
+        
+        # 检查父目录是否存在且可写
+        parent_dir = requirements_txt.parent
+        if not parent_dir.exists():
+            echo_error(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
+            raise typer.Abort()
+        
+        if not parent_dir.is_dir():
+            echo_error(f"{parent_dir.absolute().as_posix()} 不是一个目录。")
+            raise typer.Abort()
+            
+        # 检查目录是否可写
+        try:
+            # 尝试在目录中创建一个临时文件来测试写权限
+            test_file = parent_dir / ".test_write_permission"
+            test_file.touch()
+            test_file.unlink()
+        except (PermissionError, OSError):
+            echo_error(f"目录 {parent_dir.absolute().as_posix()} 不可写。")
+            raise typer.Abort()
+    else:
+        # 使用默认逻辑
+        work_dir: Path = global_state.check_work_dir_or_use_cwd()
+        requirements_txt = work_dir / requirements_file_name
+    
+    # 检查文件是否已存在
     if requirements_txt.exists() and not force:
         echo_warning(
             f"{requirements_txt.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。"
         )
         raise typer.Exit()
+    
     try:
         # 执行 uv export 命令生成 requirements.txt
         subprocess.run(
