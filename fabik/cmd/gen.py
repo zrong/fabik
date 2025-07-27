@@ -29,10 +29,7 @@ NoteReqirementsFileName = Annotated[
 ]
 
 
-# 延迟导入避免循环导入
-def _get_global_state():
-    from fabik.cmd import global_state
-    return global_state
+from fabik.cmd import global_state
 
 
 def gen_password(
@@ -68,7 +65,6 @@ def gen_requirements(
     requirements_file_name: NoteReqirementsFileName = "requirements.txt",
 ):
     """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
-    global_state = _get_global_state()
     work_dir: Path = global_state.check_work_dir_or_use_cwd()
     requirements_txt = work_dir / requirements_file_name
     if requirements_txt.exists() and not force:

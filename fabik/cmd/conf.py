@@ -23,16 +23,12 @@ NoteEnvPostfix = Annotated[
 ]
 
 
-# 延迟导入避免循环导入
-def _get_global_state():
-    from fabik.cmd import global_state
-    return global_state
+from fabik.cmd import global_state
 
 
 def conf_callback(
     force: NoteForce = False,
 ):
-    global_state = _get_global_state()
     global_state.force = force
 
 
@@ -46,7 +42,6 @@ def conf_tpl(
     env_postfix: NoteEnvPostfix = False,
 ):
     """[local] Initialize configuration file content based on the template files in the local tpl directory."""
-    global_state = _get_global_state()
     # 需要检查 tpl_dir 是否存在
     global_state.register_config_validator(config_validator_tpldir)
     global_state.load_conf_data(check=True)
@@ -77,7 +72,6 @@ def conf_make(
     env_postfix: NoteEnvPostfix = False,
 ):
     """[local] Initialize configuration file content based on the fabik.toml, no template file is used."""
-    global_state = _get_global_state()
     global_state.load_conf_data(check=True)
     for f in file:
         global_state.write_config_file(

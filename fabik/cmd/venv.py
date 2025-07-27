@@ -23,10 +23,7 @@ NoteReqirementsFileName = Annotated[
 ]
 
 
-# 延迟导入避免循环导入
-def _get_global_state():
-    from fabik.cmd import global_state
-    return global_state
+from fabik.cmd import global_state
 
 
 def server_callback(
@@ -34,7 +31,6 @@ def server_callback(
         DeployClassName, typer.Option(help="指定部署类。")
     ] = DeployClassName.GUNICORN,
 ):
-    global_state = _get_global_state()
     if deploy_class == DeployClassName.GUNICORN:
         from fabik.deploy.gunicorn import GunicornDeploy as Deploy
 
@@ -49,7 +45,6 @@ def venv_init(
     requirements_file_name: NoteReqirementsFileName = "requirements.txt",
 ):
     """「远程」部署远程服务器的虚拟环境。"""
-    global_state = _get_global_state()
     try:
         rsync_exclude = global_state.conf_data.get("RSYNC_EXCLUDE", [])
         global_state.deploy_conn.rsync(exclude=rsync_exclude)
@@ -66,7 +61,6 @@ def venv_update(
     all: Annotated[bool, typer.Option(help="更新所有 pip 包。")] = False,
 ):
     """「远程」部署远程服务器的虚拟环境。"""
-    global_state = _get_global_state()
     try:
         if all:
             global_state.deploy_conn.pipupgrade(all=True)
@@ -82,5 +76,4 @@ def venv_update(
 
 def venv_outdated():
     """「远程」打印所有的过期的 python package。"""
-    global_state = _get_global_state()
     global_state.deploy_conn.pipoutdated()  # type: ignore # noqa: F821
