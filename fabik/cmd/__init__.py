@@ -57,6 +57,7 @@ class GlobalState:
     conf_file: Path
     env: str | None = None
     force: bool = False
+    output_dir: Path | None = None
     fabic_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
@@ -108,12 +109,12 @@ class GlobalState:
         except (PathError, ConfigError):
             pass
         return self.cwd
-    
-    def check_output_file(self, output_file: Path, is_file: bool=True) -> Path:
-        """ 检测输出文件或者文件夹是否可写。"""
+
+    def check_output_file(self, output_file: Path, is_file: bool = True) -> Path:
+        """检测输出文件或者文件夹是否可写。"""
         # 使用指定的输出文件路径
         file = Path(output_file).resolve().absolute()
-        
+
         if is_file:
             if file.is_dir():
                 echo_error(f"{file.absolute().as_posix()} 必须是一个文件。")
@@ -124,7 +125,7 @@ class GlobalState:
             if not parent_dir.exists():
                 echo_error(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
                 raise typer.Exit()
-            
+
             if not parent_dir.is_dir():
                 echo_error(f"{parent_dir.absolute().as_posix()} 不是一个文件夹。")
                 raise typer.Exit()
@@ -135,7 +136,7 @@ class GlobalState:
             if not file.exists():
                 echo_error(f"{file.absolute().as_posix()} 不存在。")
                 raise typer.Exit()
-            
+
         return file
 
     def load_conf_data(
@@ -178,8 +179,9 @@ class GlobalState:
         """
         try:
             replacer = ConfigReplacer(
-                global_state.conf_data,
-                work_dir=global_state.cwd,  # type: ignore
+                self.conf_data,
+                self.cwd,  # type: ignore
+                output_dir=self.output_dir,
                 tpl_dir=tpl_dir,
                 env_name=global_state.env,
             )

@@ -350,6 +350,7 @@ class ConfigReplacer:
     fabik_name: str
     fabik_conf: dict
     work_dir: Path
+    output_dir: Path | None = None
     tpl_dir: Path | None = None
     deploy_dir: Path | None = None
     replace_environ: list[str] | None = None
@@ -359,6 +360,8 @@ class ConfigReplacer:
         self,
         fabik_conf: dict[str, Any],
         work_dir: Path,
+        *,
+        output_dir: Path | None = None,
         tpl_dir: Path | None = None,
         env_name: str | None = None,
     ):
@@ -487,10 +490,12 @@ replace_obj: {replace_obj}.""",
     ) -> tuple[Path, Path]:
         """写入配置文件"""
         replace_obj = self.get_replace_obj(tpl_name)
+        # 使用 output_dir
+        output_dir: Path = self.work_dir if self.output_dir is None else self.output_dir
         # 不加后缀的文件路径
-        target = self.work_dir.joinpath(tpl_name)
+        target = output_dir.joinpath(tpl_name)
         # 加入后缀的文件路径，大部分情况下与 target 相同
-        final_target = self.work_dir.joinpath(f"{tpl_name}{target_postfix}")
+        final_target = output_dir.joinpath(f"{tpl_name}{target_postfix}")
 
         # 基于是否提供了 tpl_dir 决定使用哪种写入器
         self.writer = (

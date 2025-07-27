@@ -1,11 +1,10 @@
-""" .. _fabik_cmd_conf:
+""".. _fabik_cmd_conf:
 
 fabik.cmd.conf
 ~~~~~~~~~~~~~~~~~~~~~~
 
 conf 子命令相关函数
 """
-
 
 import typer
 from typing import Annotated
@@ -25,8 +24,12 @@ NoteEnvPostfix = Annotated[
 
 def conf_callback(
     force: NoteForce = False,
+    output_dir: Annotated[
+        Path | None, typer.Option(help="指定输出目录的完整路径。")
+    ] = None,
 ):
     global_state.force = force
+    global_state.output_dir = output_dir
 
 
 def conf_tpl(
