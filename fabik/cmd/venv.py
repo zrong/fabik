@@ -14,29 +14,11 @@ from fabik.error import echo_error
 from fabik.cmd import global_state
 
 
-class DeployClassName(StrEnum):
-    GUNICORN = "gunicorn"
-    uWSGI = "uwsgi"
-
 
 NoteReqirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
 
-
-def server_callback(
-    deploy_class: Annotated[
-        DeployClassName, typer.Option(help="指定部署类。")
-    ] = DeployClassName.GUNICORN,
-):
-    if deploy_class == DeployClassName.GUNICORN:
-        from fabik.deploy.gunicorn import GunicornDeploy as Deploy
-
-        global_state.build_deploy_conn(Deploy)
-    elif deploy_class == DeployClassName.uWSGI:
-        from fabik.deploy.uwsgi import UwsgiDeploy as Deploy
-
-        global_state.build_deploy_conn(Deploy)
 
 
 def venv_init(

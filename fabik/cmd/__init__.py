@@ -1,4 +1,4 @@
-""" .. _fabik_cmd:
+""".. _fabik_cmd:
 
 fabik.cmd
 ----------------------------
@@ -7,31 +7,12 @@ fabik command line toolset
 """
 
 __all__ = [
-    "main_callback",
-    "main_init",
-    "conf_callback",
-    "conf_tpl",
-    "conf_make",
-    "gen_requirements",
-    "gen_password",
-    "gen_fernet_key", 
-    "gen_token",
-    "gen_uuid",
-    "server_callback",
-    "venv_init",
-    "venv_update",
-    "venv_outdated",
-    "server_deploy",
-    "server_start",
-    "server_stop",
-    "server_reload",
-    "server_dar",
     "GlobalState",
     "global_state",
     "UUIDType",
     "DeployClassName",
     "NoteRename",
-    "NoteForce", 
+    "NoteForce",
     "NoteEnvPostfix",
     "NoteReqirementsFileName",
 ]
@@ -290,7 +271,6 @@ class GlobalState:
 )"""
 
 
-
 # ==============================================
 # functions for command line interface
 # ==============================================
@@ -305,44 +285,11 @@ NoteEnvPostfix = Annotated[
 NoteReqirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
+NoteOutputFile = Annotated[
+    Path, typer.Option("--output", "-o", help="指定输出的文件名。")
+]
 
 
 # 创建全局状态实例并注册默认验证器
 global_state = GlobalState()
 global_state.register_config_validator(config_validator_name_workdir)
-
-# 从子模块导入函数
-#
-from fabik.cmd.main import (
-    main_callback,
-    main_init
-)
-
-from fabik.cmd.gen import (
-    gen_password,
-    gen_fernet_key,
-    gen_token,
-    gen_uuid,
-    gen_requirements,
-)
-
-from fabik.cmd.conf import (
-    conf_callback,
-    conf_tpl,
-    conf_make,
-)
-
-from fabik.cmd.venv import (
-    server_callback,
-    venv_init,
-    venv_update,
-    venv_outdated,
-)
-
-from fabik.cmd.server import (
-    server_deploy,
-    server_start,
-    server_stop,
-    server_reload,
-    server_dar,
-)

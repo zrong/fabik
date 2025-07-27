@@ -7,27 +7,38 @@ fabik command line interface implementation
 """
 
 import typer
-from fabik.cmd import (
-    main_callback,
-    main_init,
-    conf_callback,
-    conf_tpl,
-    conf_make,
+
+from fabik.cmd import main_callback, main_init
+
+from fabik.cmd.gen import (
     gen_password,
     gen_fernet_key,
     gen_token,
     gen_uuid,
     gen_requirements,
-    server_callback,
+)
+
+from fabik.cmd.conf import (
+    conf_callback,
+    conf_tpl,
+    conf_make,
+)
+
+from fabik.cmd.venv import (
     venv_init,
     venv_update,
     venv_outdated,
+)
+
+from fabik.cmd.server import (
+    server_callback,
     server_deploy,
     server_start,
     server_stop,
     server_reload,
     server_dar,
 )
+
 
 main: typer.Typer = typer.Typer()
 
