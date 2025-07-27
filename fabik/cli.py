@@ -8,7 +8,7 @@ fabik command line interface implementation
 
 import typer
 
-from fabik.cmd import main_callback, main_init
+from fabik.cmd.main import main_callback, main_init
 
 from fabik.cmd.gen import (
     gen_password,
