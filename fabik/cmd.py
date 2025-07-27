@@ -10,9 +10,6 @@ fabik command line toolset
 from fabik.cmd import (
     main_callback,
     main_init,
-    conf_callback,
-    conf_tpl,
-    conf_make,
     gen_requirements,
     GlobalState,
     global_state,
@@ -29,6 +26,12 @@ from fabik.cmd.gen import (
     gen_fernet_key,
     gen_token,
     gen_uuid,
+)
+
+from fabik.cmd.conf import (
+    conf_callback,
+    conf_tpl,
+    conf_make,
 )
 
 from fabik.cmd.venv import (
