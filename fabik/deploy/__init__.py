@@ -1,4 +1,4 @@
-""" .. _fabik_deploy:
+""".. _fabik_deploy:
 
 fabik.deploy
 ~~~~~~~~~~~~~~~~~~~
@@ -19,7 +19,7 @@ from invoke.exceptions import Exit
 
 from fabik.conf import ConfigReplacer
 
-logger = logging.Logger('fabric', level=logging.DEBUG)
+logger = logging.Logger("fabric", level=logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
@@ -28,10 +28,10 @@ def rsync(
     source: str,
     target: str,
     exclude=(),
-    delete: bool=False,
-    strict_host_keys: bool=True,
-    rsync_opts: str="",
-    ssh_opts: str="",
+    delete: bool = False,
+    strict_host_keys: bool = True,
+    rsync_opts: str = "",
+    ssh_opts: str = "",
 ):
     """
     Convenient wrapper around your friendly local ``rsync``.
@@ -153,67 +153,75 @@ def rsync(
     return c.local(cmd)
 
 
-class Deploy(object):
+class Deploy:
     fabik_conf: dict
     work_dir: Path
     conn: Connection
     env_name: str | None = None
+    verbose: bool = False
+
     pye: str
     replacer: ConfigReplacer
 
-    def __init__(self, fabik_conf: dict, work_dir: Path, conn: Connection, env_name: str | None=None):
-        """ 初始化
-        """
-        self.env_name = env_name
+    def __init__(
+        self,
+        fabik_conf: dict,
+        work_dir: Path,
+        conn: Connection,
+        env_name: str | None = None,
+        verbose: bool = False,
+    ):
+        """初始化"""
         self.fabik_conf = fabik_conf
-        self.conn = conn
         self.work_dir = Path(work_dir)
-        self.pye = fabik_conf['PYE']
-        self.replacer = ConfigReplacer(fabik_conf, self.work_dir, env_name=env_name)
+        self.conn = conn
+        self.env_name = env_name
+        self.verbose = verbose
+
+        self.pye = fabik_conf["PYE"]
+        self.replacer = ConfigReplacer(
+            fabik_conf, self.work_dir, env_name=env_name, verbose=self.verbose
+        )
         self.replacer.check_env_name()
 
     def check_remote_conn(self):
-        """ 确保当前提供的 conn 是远程版本
-        """
+        """确保当前提供的 conn 是远程版本"""
         if not isinstance(self.conn, Connection):
-            raise Exit('Use -H to provide a host!')
+            raise Exit("Use -H to provide a host!")
 
     def get_remote_path(self, *args) -> str:
         return self.replacer.deploy_dir.joinpath(*args).as_posix()
 
     def remote_exists(self, file):
-        """ 是否存在远程文件 file
-        """
+        """是否存在远程文件 file"""
         self.check_remote_conn()
         # files.exists 仅接受字符串
         if isinstance(file, Path):
             file = file.resolve().as_posix()
         command = f'test -e "$(echo {file})"'
-        logger.info(f'{command=}')
+        logger.info(f"{command=}")
         return self.conn.run(command, hide=True, warn=True).ok
 
     def make_remote_dir(self, *args):
-        """ 创建部署文件夹
-        """
+        """创建部署文件夹"""
         self.check_remote_conn()
         remotedir = self.get_remote_path(*args)
         if not self.remote_exists(remotedir):
-            command = 'mkdir %s' % remotedir
-            logger.info('创建远程文件夹 %s', command)
+            command = "mkdir %s" % remotedir
+            logger.info("创建远程文件夹 %s", command)
             self.conn.run(command)
 
     def cat_remote_file(self, *args):
-        """ 使用 cat 命令获取远程文件的内容
-        """
+        """使用 cat 命令获取远程文件的内容"""
         f = self.get_remote_path(*args)
-        logger.info('cat_remote_file %s', f)
+        logger.info("cat_remote_file %s", f)
         if not self.remote_exists(f):
             return None
-        result = self.conn.run('cat ' + f, warn=False, hide=True)
+        result = self.conn.run("cat " + f, warn=False, hide=True)
         return result.stdout
 
     def get_remote_pid(self, host=None, port=None):
-        """ 利用命令行查找某个端口运行进程的 pid
+        """利用命令行查找某个端口运行进程的 pid
         :param host: IP 地址
         :param port: 端口号
         """
@@ -222,181 +230,195 @@ class Deploy(object):
         if host:
             address = host
         if port:
-            p = ':' + str(port)
+            p = ":" + str(port)
             if address:
-                address += '@' + p
+                address += "@" + p
             else:
                 address = p
         if not address:
-            raise Exit('需要 host 或 port 配置。')
+            raise Exit("需要 host 或 port 配置。")
         # command = 'lsof -i :2004 | tail -1'
-        command_fmt = 'lsof -i {} | tail -1'
+        command_fmt = "lsof -i {} | tail -1"
         command = command_fmt.format(address)
         result = self.conn.run(command, warn=False, hide=True)
-        if result.stdout == '':
+        if result.stdout == "":
             return None
-        return re.split(r'\s+', result.stdout)[1]
+        return re.split(r"\s+", result.stdout)[1]
 
     def init_remote_dir(self, deploy_dir):
-        """ 创建远程服务器的运行环境
-        """
+        """创建远程服务器的运行环境"""
         deploy_dir_path = Path(deploy_dir)
-        for d in [ self.replacer.deploy_dir,
+        for d in [
+            self.replacer.deploy_dir,
             deploy_dir,
-            deploy_dir_path.joinpath('logs'),
-            deploy_dir_path.joinpath('output') ]:
+            deploy_dir_path.joinpath("logs"),
+            deploy_dir_path.joinpath("output"),
+        ]:
             self.make_remote_dir(d)
 
     def source_venv(self):
-        remote_venv_dir = self.get_remote_path('venv')
+        remote_venv_dir = self.get_remote_path("venv")
         if not self.remote_exists(remote_venv_dir):
-            raise Exit('venv 还没有创建！请先执行 init_remote_venv')
-        return f'source {remote_venv_dir}/bin/activate'
+            raise Exit("venv 还没有创建！请先执行 init_remote_venv")
+        return f"source {remote_venv_dir}/bin/activate"
 
     def init_remote_venv(self, requirements_file_name: str):
-        """ 创建虚拟环境
-        """
-        remote_venv_dir = self.get_remote_path('venv')
-        
+        """创建虚拟环境"""
+        remote_venv_dir = self.get_remote_path("venv")
+
         # 检查 Python 是否可用
-        python_check = self.conn.run(f'{self.pye} --version', hide=True, warn=True)
+        python_check = self.conn.run(f"{self.pye} --version", hide=True, warn=True)
         if not python_check.ok:
-            raise Exit(f'Python 可执行文件 {self.pye} 未找到或未安装')
-        
+            raise Exit(f"Python 可执行文件 {self.pye} 未找到或未安装")
+
         # 创建虚拟环境（如果不存在）
         if not self.remote_exists(remote_venv_dir):
-            venv_result = self.conn.run(f'{self.pye} -m venv {remote_venv_dir}', warn=True)
+            venv_result = self.conn.run(
+                f"{self.pye} -m venv {remote_venv_dir}", warn=True
+            )
             if not venv_result.ok:
                 # 尝试使用 python3 或 python
-                alt_python = 'python3' if self.pye != 'python3' else 'python'
-                venv_result = self.conn.run(f'{alt_python} -m venv {remote_venv_dir}', warn=True)
+                alt_python = "python3" if self.pye != "python3" else "python"
+                venv_result = self.conn.run(
+                    f"{alt_python} -m venv {remote_venv_dir}", warn=True
+                )
                 if not venv_result.ok:
-                    raise Exit(f'创建虚拟环境失败: {venv_result.stderr}')
-        
+                    raise Exit(f"创建虚拟环境失败: {venv_result.stderr}")
+
         # 检查虚拟环境是否成功创建
-        if not self.remote_exists(f'{remote_venv_dir}/bin/activate'):
-            raise Exit('虚拟环境创建失败，激活脚本不存在')
-            
+        if not self.remote_exists(f"{remote_venv_dir}/bin/activate"):
+            raise Exit("虚拟环境创建失败，激活脚本不存在")
+
         # 确保 pip 可用并更新
-        with self.conn.prefix(f'source {remote_venv_dir}/bin/activate'):
+        with self.conn.prefix(f"source {remote_venv_dir}/bin/activate"):
             # 先确保 pip 存在
-            pip_check = self.conn.run('pip --version', hide=True, warn=True)
+            pip_check = self.conn.run("pip --version", hide=True, warn=True)
             if not pip_check.ok:
                 # 尝试安装 pip
-                self.conn.run('curl https://bootstrap.pypa.io/get-pip.py | python', warn=True)
-            
+                self.conn.run(
+                    "curl https://bootstrap.pypa.io/get-pip.py | python", warn=True
+                )
+
             # 更新 pip
-            pip_update = self.conn.run('pip install -U pip', warn=True)
+            pip_update = self.conn.run("pip install -U pip", warn=True)
             if not pip_update.ok:
-                logger.warning('更新 pip 失败，继续执行后续步骤')
-            
+                logger.warning("更新 pip 失败，继续执行后续步骤")
+
             # 安装 requirements（如果文件存在）
             req_file = self.get_remote_path(requirements_file_name)
             if self.remote_exists(req_file):
-                self.conn.run(f'pip install -r {req_file}', warn=True)
+                self.conn.run(f"pip install -r {req_file}", warn=True)
             else:
-                logger.warning(f'未找到 requirements 文件: {req_file}')
+                logger.warning(f"未找到 requirements 文件: {req_file}")
 
-    def piplist(self, format='columns'):
-        """ 获取虚拟环境中的所有安装的 python 模块
+    def piplist(self, format="columns"):
+        """获取虚拟环境中的所有安装的 python 模块
         :@param format: columns (default), freeze, or json
         """
         with self.conn.prefix(self.source_venv()):
-            result = self.conn.run('pip list --format ' + format)
+            result = self.conn.run("pip list --format " + format)
             return result.stdout
 
-    def pipoutdated(self, format='columns'):
-        """ 查看过期的 python 模块
+    def pipoutdated(self, format="columns"):
+        """查看过期的 python 模块
         :@param format: columns (default), freeze, or json
         """
         with self.conn.prefix(self.source_venv()):
-            result = self.conn.run('pip list --outdated --format ' + format)
+            result = self.conn.run("pip list --outdated --format " + format)
             return result.stdout
 
     def pipupgrade(self, names=None, all=False):
-        """ 更新一个 python 模块
-        """
+        """更新一个 python 模块"""
         with self.conn.prefix(self.source_venv()):
             mod_names = []
             if all:
-                result = self.conn.run('pip list --outdated --format json')
+                result = self.conn.run("pip list --outdated --format json")
                 if result.ok:
-                    mod_names = [item['name'] for item in json.loads(result.stdout)]
+                    mod_names = [item["name"] for item in json.loads(result.stdout)]
             elif names:
                 mod_names = [name for name in names]
             if mod_names:
-                self.conn.run('pip install -U ' + ' '.join(mod_names))
+                self.conn.run("pip install -U " + " ".join(mod_names))
 
     def put_tpl(self, tpl_name, force=False):
-        """ 基于 jinja2 模板生成配置文件，根据 env 的值决定是否上传
-        """
+        """基于 jinja2 模板生成配置文件，根据 env 的值决定是否上传"""
         # 创建远程文件夹
         self.make_remote_dir()
         # 获取远程文件的绝对路径
         target_remote = self.get_remote_path(tpl_name)
         tpltarget_remote_exists = self.remote_exists(target_remote)
         if force and tpltarget_remote_exists:
-            logger.warning('delete %s', target_remote)
-            remoter = self.conn.run(f'rm -f {target_remote}')
+            logger.warning("delete %s", target_remote)
+            remoter = self.conn.run(f"rm -f {target_remote}")
             if remoter.ok:
-                logger.warning(f'删除远程配置文件 {target_remote}')
+                logger.warning(f"删除远程配置文件 {target_remote}")
             tpltarget_remote_exists = False
-        
+
         # 本地创建临时文件后上传
         if force or not tpltarget_remote_exists:
             # 创建一个临时文件用于上传，使用后缀
-            _, final_file = self.replacer.set_writer(tpl_name, force=force, target_postfix=f'.{self.env_name}')
+            _, final_file = self.replacer.set_writer(
+                tpl_name, force=force, target_postfix=f".{self.env_name}"
+            )
             self.conn.put(final_file, target_remote)
-            logger.warning('覆盖远程配置文件 %s', target_remote)
+            logger.warning("覆盖远程配置文件 %s", target_remote)
             localrunner = runners.Local(self.conn)
             # 删除本地的临时配置文件
-            localr = localrunner.run(f'rm -f {final_file.as_posix()}')
+            localr = localrunner.run(f"rm -f {final_file.as_posix()}")
             if localr is not None and localr.ok:
-                logger.warning(f'删除本地临时文件 {final_file.as_posix()}')
-            
-    def put_config(self, files: dict[str, str] | None = None, force: bool=False) -> None:
+                logger.warning(f"删除本地临时文件 {final_file.as_posix()}")
+
+    def put_config(
+        self, files: dict[str, str] | None = None, force: bool = False
+    ) -> None:
         """上传配置文件到远程服务器
-        
+
         :param files: 要上传的配置文件字典，如果为None则使用默认配置文件
         :param force: 是否强制覆盖已存在的文件
         """
         if files is None:
             # 默认上传常用配置文件
             default_files = {
-                '.env': '.env',
-                'gunicorn.conf.py': 'gunicorn.conf.py',
-                'config.toml': 'config.toml'
+                ".env": ".env",
+                "gunicorn.conf.py": "gunicorn.conf.py",
+                "config.toml": "config.toml",
             }
             files = default_files
-            
+
         for tpl_name in files.keys():
             self.put_tpl(tpl_name, force)
 
     def rsync(self, exclude=[], is_windows=False):
-        """ 部署最新程序到远程服务器
-        """
+        """部署最新程序到远程服务器"""
         if is_windows:
             # 因为 windows 下面的 rsync 不支持 windows 风格的绝对路径，转换成相对路径
-            pdir = str(self.work_dir.relative_to('.').resolve())
+            pdir = str(self.work_dir.relative_to(".").resolve())
         else:
             pdir = str(self.work_dir.resolve())
-        if not pdir.endswith('/'):
-            pdir += '/'
+        if not pdir.endswith("/"):
+            pdir += "/"
         deploy_dir = self.get_remote_path()
         self.init_remote_dir(deploy_dir)
         rsync(self.conn, pdir, deploy_dir, exclude=exclude)
-        logger.warn('RSYNC [%s] to [%s]', pdir, deploy_dir)
+        logger.warn("RSYNC [%s] to [%s]", pdir, deploy_dir)
 
     def get_logs(self, extras=[]):
-        """ 下载远程 logs 到本地
-        """
-        log_files = ['app.log', 'error.log', 'access.log']
-        time_string = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        """下载远程 logs 到本地"""
+        log_files = ["app.log", "error.log", "access.log"]
+        time_string = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         for f in log_files + extras:
-            logf = self.get_remote_path('logs/{}'.format(f))
+            logf = self.get_remote_path("logs/{}".format(f))
             if not self.remote_exists(logf):
-                logger.warning('找不到远程 log 文件 %s', logf)
+                logger.warning("找不到远程 log 文件 %s", logf)
                 continue
             logp = Path(logf)
-            local_file = self.work_dir.joinpath('logs', '{name}_{basename}_{times}{extname}'.format(name=self.env_name, times=time_string, basename=logp.name, extname=logp.suffix))
+            local_file = self.work_dir.joinpath(
+                "logs",
+                "{name}_{basename}_{times}{extname}".format(
+                    name=self.env_name,
+                    times=time_string,
+                    basename=logp.name,
+                    extname=logp.suffix,
+                ),
+            )
             self.conn.get(logf, local=local_file)

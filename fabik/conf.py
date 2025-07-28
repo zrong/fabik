@@ -27,7 +27,7 @@ from fabik.error import (
     FabikError,
     ConfigError,
     PathError,
-    TplError
+    TplError,
 )
 from fabik.tpl import FABIK_TOML_FILE
 
@@ -223,7 +223,7 @@ class FabikConfig:
                 self.setcfg(*args[1:], value=value, data=cur_data)
             else:
                 data[arg0] = value
-                
+
     def __repr__(self) -> str:
         return f"""{self.__class__.__name__}
         (work_dir={self.__work_dir!s}, 
@@ -237,12 +237,10 @@ class ConfigWriter:
     tpl_name: str
     dst_file: Path
     replace_obj: dict
+    verbose: bool = False
 
     def __init__(
-        self,
-        tpl_name: str,
-        dst_file: Path,
-        replace_obj: dict,
+        self, tpl_name: str, dst_file: Path, replace_obj: dict, verbose: bool = False
     ) -> None:
         """初始化
         :param tplname: 模版名称，不含扩展名
@@ -251,12 +249,7 @@ class ConfigWriter:
         self.tpl_name = tpl_name
         self.dst_file = dst_file
         self.replace_obj = replace_obj
-
-    def _fill_meta_data(self, config_data: dict) -> dict:
-        """向配置填充 meta 信息。"""
-        config_data["create_time"] = f"{fabik.__now__!s}"
-        config_data["fabik_version"] = f"fabik v{fabik.__version__}"
-        return config_data
+        self.verbose = verbose
 
     def _write_key_value(self):
         """输出 key = value 形式的文件"""
@@ -311,13 +304,14 @@ class TplWriter(ConfigWriter):
         dst_file: Path,
         replace_obj: dict[str, Any],
         tpl_dir: Path,
+        verbose: bool = False,
     ) -> None:
         """初始化
         :param tplname: 模版名称，不含扩展名
         :param dstname: 目标名称
         :param tpl_dir: 模板文件目录
         """
-        super().__init__(tpl_name, dst_file, replace_obj)
+        super().__init__(tpl_name, dst_file, replace_obj, verbose)
 
         # 自动增加 jinja2 后缀，模板文件必须带有 jinja2 后缀。
         self.tpl_filename = (
@@ -330,6 +324,11 @@ class TplWriter(ConfigWriter):
         """能找到模板文件，调用 jinja2 直接渲染。"""
         tpl = self.tpl_env.get_template(self.tpl_filename)
         self.dst_file.write_text(tpl.render(self.replace_obj))
+        if self.verbose:
+            echo_info(
+                f"{self.tpl_filename=}\n{self.dst_file.absolute().as_posix()}\n{self.replace_obj=}",
+                panel_title="TplWriter::_write_by_jinja()",
+            )
         echo_info(
             f"从模板 {self.tpl_filename} 创建文件{self.dst_file.as_posix()} 成功。"
         )
@@ -339,7 +338,9 @@ class TplWriter(ConfigWriter):
         try:
             self._write_by_jinja()
         except TplError as e:
-            raise TplError(err_type=e, err_msg=f"模版文件 {self.tpl_filename} 错误： {e!s}")
+            raise TplError(
+                err_type=e, err_msg=f"模版文件 {self.tpl_filename} 错误： {e!s}"
+            )
 
 
 class ConfigReplacer:
@@ -354,6 +355,7 @@ class ConfigReplacer:
     tpl_dir: Path | None = None
     deploy_dir: Path | None = None
     replace_environ: list[str] | None = None
+    verbose: bool = False
     writer: ConfigWriter | None = None
 
     def __init__(
@@ -364,16 +366,41 @@ class ConfigReplacer:
         output_dir: Path | None = None,
         tpl_dir: Path | None = None,
         env_name: str | None = None,
+        verbose: bool = False,
     ):
         """初始化"""
-        self.env_name = env_name
         self.fabik_conf = fabik_conf
-        self.envs = fabik_conf.get("ENV", None)
         self.work_dir = work_dir
+
+        self.output_dir = output_dir
         self.tpl_dir = tpl_dir
+        self.env_name = env_name
+        self.verbose = verbose
+
+        self.envs = fabik_conf.get("ENV", None)
 
         self.check_env_name()
-        self._set_replace_keys()
+
+        """设置替换用的 key"""
+        self.fabik_name = self.fabik_conf.get("NAME", "fabik")
+        self.deploy_dir = Path(
+            self.fabik_conf.get("DEPLOY_DIR", f"/srv/app/{self.fabik_name}")
+        )
+        if not self.deploy_dir.is_absolute():
+            raise ConfigError(
+                err_type=ValueError(),
+                err_msg=f"DEPLOY_DIR must be a absolute path! Now is {self.deploy_dir}.",
+            )
+        self.replace_environ = self.get_tpl_value("REPLACE_ENVIRON", merge=False)
+
+    def _fill_root_meta(self, replace_obj: dict = {}):
+        """向被替换的值，填充 NAME/WORK_DIR/DEPLOY_DIR  变量。"""
+        replace_obj["NAME"] = self.fabik_name
+        replace_obj["WORK_DIR"] = self.work_dir.resolve().as_posix()
+        # 增加 {DEPLOY_DIR} 的值进行替换
+        if isinstance(self.deploy_dir, Path):
+            replace_obj["DEPLOY_DIR"] = self.deploy_dir.as_posix()
+        return replace_obj
 
     def check_env_name(self):
         """仅在 env_name 有效时，才会检查 envs 的值。"""
@@ -397,17 +424,6 @@ class ConfigReplacer:
             return env_obj
         return env_obj.get(key, default_value)
 
-    def _set_replace_keys(self):
-        """设置替换用的 key"""
-        self.fabik_name = self.fabik_conf.get("NAME", "fabik")
-        self.deploy_dir = Path(self.fabik_conf.get("DEPLOY_DIR", "/srv/app"))
-        if not self.deploy_dir.is_absolute():
-            raise ConfigError(
-                err_type=ValueError(),
-                err_msg=f"DEPLOY_DIR must be a absolute path! Now is {self.deploy_dir}.",
-            )
-        self.replace_environ = self.get_tpl_value("REPLACE_ENVIRON", merge=False)
-
     def get_tpl_value(
         self, tpl_name: str, merge: bool = True, wrap_key: str | None = None
     ) -> Any:
@@ -418,30 +434,24 @@ class ConfigReplacer:
         """
         base_obj = self.fabik_conf.get(tpl_name, None)
         update_obj = self.get_env_value(tpl_name)
-        
+
         # 对于非字典类型，强制不使用合并
         if not isinstance(base_obj, dict) or not isinstance(update_obj, dict):
             merge = False
-            
+
         if merge:
             repl_obj = merge_dict(base_obj or {}, update_obj or {})
         else:
             repl_obj = update_obj or base_obj
-            
+
         return {wrap_key: repl_obj} if wrap_key else repl_obj
 
     def replace(self, value: str) -> str:
         """替换 value 中的占位符"""
         # 环境变量替换用
         environ_keys = {}
-        # 替换 {NAME} 和 {WORK_DIR}
-        replace_obj = {
-            "NAME": self.fabik_name,
-            "WORK_DIR": self.work_dir.resolve().as_posix(),
-        }
-        # 增加 {DEPLOY_DIR} 的值进行替换
-        if isinstance(self.deploy_dir, Path):
-            replace_obj["DEPLOY_DIR"] = self.deploy_dir.as_posix()
+        # 替换 NAME 和 WORK_DIR
+        replace_obj = self._fill_root_meta()
         # 获取环境变量中的替换值
         if self.replace_environ is not None:
             for n in self.replace_environ:
@@ -456,10 +466,13 @@ class ConfigReplacer:
                 if environ_value is not None:
                     replace_obj[n] = environ_value
         try:
-            # print(f'replace format_map {value=} {replace_obj=}')
-            templ: jinja2.Template = jinja2.Template(value)
+            if self.verbose:
+                echo_info(
+                    f"""{value=}\n{replace_obj=}""",
+                    panel_title="LOG: ConfigReplacer::replace()",
+                )
             # new_value = value.format_map(replace_obj)
-            new_value = templ.render(replace_obj)
+            new_value = jinja2.Template(value).render(replace_obj)
             return new_value
         except KeyError as e:
             # 抛出对应的 environ key 的错误
@@ -468,18 +481,27 @@ class ConfigReplacer:
                 e,
                 err_type=e,
                 err_msg=f"""error_key: {error_key}
-environ_keys: {environ_keys}
-replace_obj: {replace_obj}.""",
+{environ_keys=}
+{replace_obj=}.""",
             )
 
     def get_replace_obj(self, tpl_name: str) -> dict:
         """获取已经替换过所有值的对象。"""
-        replace_obj = self.get_tpl_value(tpl_name)
-        replace_str = tomli_w.dumps(replace_obj)
+        replace_obj_before = self.get_tpl_value(tpl_name)
+        replace_str = tomli_w.dumps(replace_obj_before)
         # 将 obj 转换成 toml 字符串，进行一次替换，然后再转换回 obj
         # 采用这样的方法可以不必处理复杂的层级关系
-        replace_obj = tomllib.loads(self.replace(replace_str))
-        return replace_obj
+        replace_obj_after = tomllib.loads(self.replace(replace_str))
+        # 再填充一次 ROOT META，让文件模板也可以使用 NAME/WORK_DIR/DEPLOY_DIR
+        replace_obj_after = self._fill_root_meta(replace_obj_after)
+        if self.verbose:
+            echo_info(
+                f"""{tpl_name=}
+            {replace_obj_before=!s}
+            {replace_obj_after=!s}""",
+                panel_title=f"LOG: {self.__class__.__name__}::get_replace_obj()",
+            )
+        return replace_obj_after
 
     def set_writer(
         self,
@@ -499,9 +521,11 @@ replace_obj: {replace_obj}.""",
 
         # 基于是否提供了 tpl_dir 决定使用哪种写入器
         self.writer = (
-            ConfigWriter(tpl_name, final_target, replace_obj)
+            ConfigWriter(tpl_name, final_target, replace_obj, self.verbose)
             if self.tpl_dir is None
-            else TplWriter(tpl_name, final_target, replace_obj, self.tpl_dir)
+            else TplWriter(
+                tpl_name, final_target, replace_obj, self.tpl_dir, self.verbose
+            )
         )
 
         if immediately:
@@ -528,18 +552,18 @@ def check_path_exists(p: Path) -> bool:
 
 # 默认验证器函数
 def config_validator_name_workdir(config: FabikConfig) -> bool:
-    """检查 NAME 和 work_dir 是否存在"""
-    keys = (["NAME"], ["PATH", "work_dir"])
+    """检查 NAME 和 work_dir 是否存在，支持嵌套 key。"""
+    keys = (["NAME"], ["WORK_DIR"])
     for key_list in keys:
         value = check_none(config.getcfg(*key_list), key_list)
-        if key_list[-1] == "work_dir":
+        if key_list[-1] == "WORK_DIR":
             check_path_exists(Path(value))
     return True
 
 
 def config_validator_tpldir(config: FabikConfig) -> bool:
     """默认的配置验证逻辑，检查必要的配置项是否存在"""
-    key_list = ["PATH", "tpl_dir"]
+    key_list = ["TPL_DIR"]
     value = check_none(config.getcfg(*key_list), key_list)
     check_path_exists(Path(value))
     return True

@@ -36,8 +36,11 @@ def main_callback(
             file_okay=True, exists=True, help="Specify the configuration file."
         ),
     ] = None,
+    verbose: Annotated[
+        bool, typer.Option('--verbose', "-v", help="Show more information.")
+    ] = False,
     version: Annotated[
-        bool, typer.Option("-v", '-V', "--version", is_eager=True, help="Show fabik version.")
+        bool, typer.Option("--version", is_eager=True, help="Show fabik version.")
     ] = False,
 ):
     if version:
@@ -50,6 +53,7 @@ def main_callback(
         raise typer.Exit()
     
     try:
+        global_state.verbose = verbose
         global_state.env = env
         global_state.cwd = FabikConfig.gen_work_dir(cwd)
         global_state.conf_file = (
@@ -61,10 +65,11 @@ def main_callback(
         echo_error(e.err_msg)
         raise typer.Exit()
 
-    echo_info(
-        f"{global_state!r}",
-        panel_title="LOG: main_callback",
-    )
+    if global_state.verbose:
+        echo_info(
+            f"{global_state!r}",
+            panel_title="LOG: main_callback",
+        )
 
 def main_init(
     full_format: Annotated[

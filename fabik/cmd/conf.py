@@ -45,7 +45,7 @@ def conf_tpl(
     # 需要检查 tpl_dir 是否存在
     global_state.register_config_validator(config_validator_tpldir)
     global_state.load_conf_data(check=True)
-    tpl_dir = Path(global_state.fabic_config.getcfg("PATH", "tpl_dir"))  # type: ignore
+    tpl_dir = Path(global_state.fabic_config.getcfg("TPL_DIR"))  # type: ignore
     tpl_names: list[str] = []
     for n in file:
         # 模板名称统一不带 jinja2 后缀，模板文件必须带有 jinja2 后缀。

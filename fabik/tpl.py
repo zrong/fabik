@@ -25,16 +25,13 @@ FABIK_TOML_SIMPLE_TPL: str = """
 # use NAME to define your project name.
 NAME = '{{ NAME }}'
 
-# Define all PATH related variables here.
-[PATH]
 # Define project source code folder, default is the absolute path of fabik command run folder.
-work_dir = "{{ WORK_DIR }}"
+WORK_DIR = "{{ WORK_DIR }}"
 
 # Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
-tpl_dir = "{{ WORK_DIR }}/tpls"
+TPL_DIR = "{{ WORK_DIR }}/tpls"
 """
 """ This is a template for fabik main config file. """
-
 
 FABIK_TOML_TPL: str = """
 ###########################################
@@ -56,11 +53,17 @@ FABIK_TOML_TPL: str = """
 # use NAME to define your project name.
 NAME = '{{ NAME }}'
 
-# Python executable name, default is 'python3', you can use a absolute path to specify a specific python executable.
-PYE = 'python3'
+# Define project source code folder, default is the absolute path of fabik command run folder.
+WORK_DIR = "{{ WORK_DIR }}"
+
+# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
+TPL_DIR = "{{ WORK_DIR }}/tpls"
 
 # DEPLOY_DIR is the absolute path of deploy folder on server
 DEPLOY_DIR = '/srv/app/{{ NAME }}'
+
+# Python executable name, default is 'python3', you can use a absolute path to specify a specific python executable.
+PYE = 'python3'
 
 # Allow to replace environment variables.
 # The following { { } } variables will be replaced with environment variables. Two curly braces should be continuous, no content should be included, such as no spaces.
@@ -80,15 +83,6 @@ REPLACE_ENVIRON = [
     'ADMIN_NAME',
     'ADMIN_PASSWORD',
 ]
-
-# Define all PATH related variables here.
-[PATH]
-# Define project source code folder, default is the absolute path of fabik command run folder.
-work_dir = "{{ WORK_DIR }}"
-
-# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
-tpl_dir = "{{ WORK_DIR }}/tpls"
-
 
 #==============================================
 # The following configuration overrides the above configuration.

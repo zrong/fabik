@@ -57,6 +57,7 @@ class GlobalState:
     conf_file: Path
     env: str | None = None
     force: bool = False
+    verbose: bool = False
     output_dir: Path | None = None
     fabic_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
@@ -101,7 +102,7 @@ class GlobalState:
         try:
             conf = FabikConfig(self.cwd, cfg=self.conf_file)
             conf.load_root_data()
-            work_dir = Path(conf.getcfg("PATH", "work_dir"))
+            work_dir = Path(conf.getcfg("WORK_DIR"))
             if not work_dir.is_absolute():
                 echo_warning(f"{work_dir} is not a absolute path.")
                 raise typer.Exit()
@@ -178,20 +179,28 @@ class GlobalState:
         :param target_postfix: 配置文件的后缀
         """
         try:
+            if self.verbose:
+                echo_info(f"""{self.conf_data=}
+                {self.cwd=!s}
+                {self.output_dir=!s}
+                {self.env=!s}
+                {tpl_name=!s}
+                {tpl_dir=!s}""", panel_title='GlobalState::load_conf_data()')
             replacer = ConfigReplacer(
                 self.conf_data,
                 self.cwd,  # type: ignore
                 output_dir=self.output_dir,
                 tpl_dir=tpl_dir,
-                env_name=global_state.env,
+                env_name=self.env,
+                verbose=self.verbose,
             )
             target, final_target = replacer.set_writer(
-                tpl_name, global_state.force, target_postfix
+                tpl_name, self.force, target_postfix
             )
 
             # 写入文件
             if replacer.writer:
-                replacer.writer.write_file(global_state.force)
+                replacer.writer.write_file(self.force)
         except FabikError as e:
             echo_error(e.err_msg)
             raise typer.Abort()
@@ -212,7 +221,7 @@ class GlobalState:
 
         config_validator_tpldir(self.fabic_config)
         # 源文件夹
-        srcfiledir = Path(self.fabic_config.getcfg("PATH", "tpl_dir"))
+        srcfiledir = Path(self.fabic_config.getcfg("TPL_DIR"))
         # 目标文件夹
         dstfiledir = self.cwd
         while len(split_path) > 1:
@@ -255,7 +264,9 @@ class GlobalState:
                 self.load_conf_data(check=True)
 
             # 使用已加载的配置
-            replacer = ConfigReplacer(self.conf_data, self.cwd, env_name=self.env)  # type: ignore
+            replacer = ConfigReplacer(
+                self.conf_data, self.cwd, env_name=self.env, verbose=self.verbose
+            )  # type: ignore
             # 从 fabik.toml 配置中获取服务器地址
             fabric_conf = replacer.get_tpl_value("FABRIC", merge=True)
             pye_conf = replacer.get_tpl_value("PYE", merge=True)
@@ -278,10 +289,11 @@ class GlobalState:
                 )
 
             d = deploy_class(
-                global_state.conf_data,
-                global_state.cwd,
+                self.conf_data,
+                self.cwd,
                 Connection(**fabric_conf),
-                global_state.env,
+                self.env,
+                self.verbose,
             )
             self.deploy_conn = d
             return d
