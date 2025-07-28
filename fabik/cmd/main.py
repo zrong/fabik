@@ -1,10 +1,11 @@
-""" .. _fabik_cmd_main:
+""".. _fabik_cmd_main:
 
 fabik.cmd.main
 ~~~~~~~~~~~~~~~~~~~~~~
 
 主要命令相关函数
 """
+
 from typing import Annotated
 from pathlib import Path
 
@@ -17,7 +18,9 @@ from fabik.conf import FabikConfig
 from fabik.error import echo_error, echo_info, echo_warning, FabikError
 from fabik.cmd import global_state, NoteForce
 
+
 def main_callback(
+    ctx: typer.Context,
     env: Annotated[
         str | None, typer.Option("--env", "-e", help="Environment name.")
     ] = None,
@@ -33,7 +36,19 @@ def main_callback(
             file_okay=True, exists=True, help="Specify the configuration file."
         ),
     ] = None,
+    version: Annotated[
+        bool, typer.Option("-v", '-V', "--version", is_eager=True, help="Show fabik version.")
+    ] = False,
 ):
+    if version:
+        echo_info(fabik.__version__)
+        raise typer.Exit()
+    
+   # 如果没有子命令且没有版本选项，显示帮助
+    if ctx.invoked_subcommand is None:
+        echo_info(ctx.get_help())
+        raise typer.Exit()
+    
     try:
         global_state.env = env
         global_state.cwd = FabikConfig.gen_work_dir(cwd)
@@ -50,7 +65,6 @@ def main_callback(
         f"{global_state!r}",
         panel_title="LOG: main_callback",
     )
-
 
 def main_init(
     full_format: Annotated[

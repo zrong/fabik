@@ -58,7 +58,7 @@ main.add_typer(sub_server)
 
 
 # The method in cmd module may be used as a command by other modules, so it is not decorated with a decorator.
-main.callback()(main_callback)
+main.callback(invoke_without_command=True)(main_callback)
 main.command('init')(main_init)
 
 sub_conf.callback()(conf_callback)
