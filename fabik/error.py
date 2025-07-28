@@ -44,6 +44,10 @@ class EnvError(FabikError):
     """ 环境设置错误。"""
     pass
 
+class TplError(FabikError):
+    """ 环境设置错误。"""
+    pass
+
 
 def echo(value:Any, *, panel_title:str | None=None, style:Style | str | None=None):
     """  调用 console.print 输出信息。"""

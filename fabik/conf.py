@@ -11,7 +11,6 @@ import os
 import jinja2
 from pathlib import Path
 from typing import Any, Union
-from datetime import datetime
 import shutil
 
 import tomllib
@@ -28,11 +27,9 @@ from fabik.error import (
     FabikError,
     ConfigError,
     PathError,
+    TplError
 )
-from fabik.tpl import (
-    FABIK_TOML_FILE,
-    FABIK_TOML_TPL,
-)
+from fabik.tpl import FABIK_TOML_FILE
 
 
 FABIK_DATA: str = "root_data"
@@ -339,7 +336,10 @@ class TplWriter(ConfigWriter):
 
     def _write_file_by_type(self):
         """重写父类的方法，仅支持 jinja2 模版渲染。"""
-        self._write_by_jinja()
+        try:
+            self._write_by_jinja()
+        except TplError as e:
+            raise TplError(err_type=e, err_msg=f"模版文件 {self.tpl_filename} 错误： {e!s}")
 
 
 class ConfigReplacer:
