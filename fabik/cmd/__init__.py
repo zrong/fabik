@@ -203,7 +203,7 @@ class GlobalState:
                 {self.env=!s}
                 {tpl_name=!s}
                 {tpl_dir=!s}""",
-                    panel_title="GlobalState::load_conf_data()",
+                    panel_title="GlobalState::write_config_file()",
                 )
             replacer = ConfigReplacer(
                 self.conf_data,
@@ -354,6 +354,8 @@ NoteOutput = Annotated[
     typer.Option(
         "--output",
         "-o",
+        resolve_path=True,
+        exists=True,
         help="Ouput to the specified path. It must be a absolute path.",
     ),
 ]

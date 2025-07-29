@@ -261,6 +261,7 @@ class ConfigWriter:
         """根据后缀决定如何处理渲染。"""
         if self.tpl_name.endswith(".toml"):
             self.dst_file.write_text(tomli_w.dumps(self.replace_obj))
+            echo_info(f"文件 {self.dst_file.as_posix()} 创建成功。")
         elif self.tpl_name == ".env":
             self._write_key_value()
         else:
@@ -268,6 +269,7 @@ class ConfigWriter:
             self.dst_file.write_text(
                 json.dumps(self.replace_obj, ensure_ascii=False, indent=4)
             )
+            echo_info(f"文件 {self.dst_file.as_posix()} 创建成功。")
 
     def write_file(self, force: bool = True, rename: bool = False):
         """写入配置文件
@@ -427,20 +429,36 @@ class ConfigReplacer:
         return env_obj.get(key, default_value)
 
     def get_tpl_value(
-        self, tpl_name: str, merge: bool = True, wrap_key: str | None = None
+        self,
+        tpl_name: str,
+        *,
+        merge: bool = True,
+        wrap_key: str | None = None,
+        check_tpl_name: bool = False,
     ) -> Any:
         """获取配置模版中的值。
         :param tpl_name: 配置模版的键名
         :param merge: 是否合并，对于已知的标量，应该选择不合并
         :param wrap_key: 是否做一个包装。如果提供，则会将提供的值作为 key 名，在最终值之上再包装一层
+        :param check_tpl_name: 检测 tpl_name 设置的值是否存在，不存在的话就报错。
         """
         base_obj = self.fabik_conf.get(tpl_name, None)
         update_obj = self.get_env_value(tpl_name)
+
+        if check_tpl_name and base_obj is None:
+            raise ConfigError(
+                err_type=TypeError(), err_msg=f"{tpl_name} not found in fabik.toml."
+            )
 
         # 对于非字典类型，强制不使用合并
         if not isinstance(base_obj, dict) or not isinstance(update_obj, dict):
             merge = False
 
+        if self.verbose:
+            echo_info(
+                f"{tpl_name=} {merge=} {wrap_key=} {base_obj=} {update_obj=}",
+                panel_title="ConfigReplacer::get_tpl_value BEFORE MERGE",
+            )
         if merge:
             repl_obj = merge_dict(base_obj or {}, update_obj or {})
         else:
@@ -489,7 +507,12 @@ class ConfigReplacer:
 
     def get_replace_obj(self, tpl_name: str) -> dict:
         """获取已经替换过所有值的对象。"""
-        replace_obj_before = self.get_tpl_value(tpl_name)
+        if self.verbose:
+            echo_info(
+                f"{tpl_name=}",
+                panel_title="ConfigReplacer::get_replace_obj() BEFORE",
+            )
+        replace_obj_before = self.get_tpl_value(tpl_name, check_tpl_name=True)
         replace_str = tomli_w.dumps(replace_obj_before)
         # 将 obj 转换成 toml 字符串，进行一次替换，然后再转换回 obj
         # 采用这样的方法可以不必处理复杂的层级关系
@@ -501,7 +524,7 @@ class ConfigReplacer:
                 f"""{tpl_name=}
             {replace_obj_before=!s}
             {replace_obj_after=!s}""",
-                panel_title=f"LOG: {self.__class__.__name__}::get_replace_obj()",
+                panel_title=f"{self.__class__.__name__}::get_replace_obj() AFTER",
             )
         return replace_obj_after
 
@@ -514,7 +537,9 @@ class ConfigReplacer:
         target_postfix: str = "",
         immediately: bool = False,
     ) -> tuple[Path, Path]:
-        """写入配置文件"""
+        """写入配置文件。
+        :param tpl_name: 配置中的根名称，一般情况下是一个表。
+        """
         replace_obj = self.get_replace_obj(tpl_name)
         # 使用 output_dir
         output_dir: Path = self.work_dir if self.output_dir is None else self.output_dir
