@@ -78,7 +78,7 @@ def main_init(
     force: NoteForce = False,
 ):
     """[local] Initialize fabik project, create fabik.toml configuration file in the working directory."""
-    work_dir: Path = global_state.check_work_dir_or_use_cwd()
+    work_dir: Path = global_state.use_work_dir_or_cwd()
 
     value = jinja2.Template(
         tpl.FABIK_TOML_TPL if full_format else tpl.FABIK_TOML_SIMPLE_TPL

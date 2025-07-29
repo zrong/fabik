@@ -25,6 +25,9 @@ def conf_callback(
     global_state.rename = rename
     global_state.output_dir = output_dir
     global_state.env_postfix = env_postfix
+    
+    if output_dir is not None and not output_dir.is_absolute():
+        global_state.output_dir = global_state.check_output(output_dir, is_file=False)
 
 
 def conf_tpl(

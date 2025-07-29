@@ -53,19 +53,14 @@ def gen_uuid(
 def gen_requirements(
     force: NoteForce = False,
     requirements_file_name: NoteRequirementsFileName = "requirements.txt",
-    output_file: NoteOutput= None,
+    output_file: NoteOutput = None,
 ):
     """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
     # 确定输出文件路径
-    if output_file is not None:
-        # 使用指定的输出文件路径
-        requirements_txt_file = global_state.check_output_file(
-            output_file, is_file=True
-        )
-    else:
-        # 使用默认逻辑
-        work_dir: Path = global_state.check_work_dir_or_use_cwd()
-        requirements_txt_file = work_dir / requirements_file_name
+    if output_file is None:
+        output_file = Path(requirements_file_name)
+    # 将输出文件设置为绝对路径
+    requirements_txt_file = global_state.check_output(output_file, is_file=True)
 
     # 检查文件是否已存在
     if requirements_txt_file.exists() and not force:

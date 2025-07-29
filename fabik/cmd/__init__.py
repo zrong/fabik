@@ -18,6 +18,7 @@ __all__ = [
 ]
 
 from enum import StrEnum
+from faulthandler import is_enabled
 import shutil
 from pathlib import Path
 from typing import Any, Callable
@@ -79,7 +80,7 @@ class GlobalState:
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
     deploy_conn: "Deploy" = None  # type: ignore # noqa: F821
-
+    
     @property
     def conf_data(self) -> dict[str, Any]:
         if self.fabic_config is None:
@@ -113,48 +114,47 @@ class GlobalState:
 
         return True
 
-    def check_work_dir_or_use_cwd(self) -> Path:
+    def use_work_dir_or_cwd(self) -> Path:
         """如果提供了配置文件，检测 work_dir 并返回。否则使用 cwd 作为 work_dir。"""
         try:
-            conf = FabikConfig(self.cwd, cfg=self.conf_file)
-            conf.load_root_data()
-            work_dir = Path(conf.getcfg("WORK_DIR"))
+
+            self.load_conf_data(False)
+            work_dir_str = self.fabic_config.getcfg("WORK_DIR")
+            work_dir = Path(work_dir_str) if work_dir_str is None else self.cwd
             if not work_dir.is_absolute():
                 echo_warning(f"{work_dir} is not a absolute path.")
                 raise typer.Exit()
             return work_dir
         except (PathError, ConfigError):
+            # 其他错误直接使用 self.cwd 作为 work_dir
             pass
         return self.cwd
 
-    def check_output_file(self, output_file: Path, is_file: bool = True) -> Path:
+    def check_output(self, output: Path, is_file: bool = True) -> Path:
         """检测输出文件或者文件夹是否可写。"""
         # 使用指定的输出文件路径
-        file = Path(output_file).resolve().absolute()
-
+        if not output.is_absolute():
+            work_dir = self.use_work_dir_or_cwd()
+            output = work_dir / output
+            
         if is_file:
-            if file.is_dir():
-                echo_error(f"{file.absolute().as_posix()} 必须是一个文件。")
-                raise typer.Exit()
+            if output.is_dir():
+                raise typer.BadParameter(f"{output.absolute().as_posix()} 必须是一个文件。")
 
             # 检查父目录是否存在且可写
-            parent_dir = file.parent
+            parent_dir = output.parent
             if not parent_dir.exists():
-                echo_error(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
-                raise typer.Exit()
+                raise typer.BadParameter(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
 
             if not parent_dir.is_dir():
-                echo_error(f"{parent_dir.absolute().as_posix()} 不是一个文件夹。")
-                raise typer.Exit()
+                raise typer.BadParameter(f"{parent_dir.absolute().as_posix()} 不是一个文件夹。")
         else:
-            if not file.is_dir():
-                echo_error(f"{file.absolute().as_posix()} 必须是一个文件夹。")
-                raise typer.Exit()
-            if not file.exists():
-                echo_error(f"{file.absolute().as_posix()} 不存在。")
-                raise typer.Exit()
+            if not output.is_dir():
+                raise typer.BadParameter(f"{output.absolute().as_posix()} 必须是一个文件夹。")
+            if not output.exists():
+                raise typer.BadParameter(f"{output.absolute().as_posix()} 不存在。")
 
-        return file
+        return output
 
     def load_conf_data(
         self,
@@ -354,9 +354,7 @@ NoteOutput = Annotated[
     typer.Option(
         "--output",
         "-o",
-        resolve_path=True,
-        exists=True,
-        help="Ouput to the specified path. It must be a absolute path.",
+        help="Ouput to the specified path.",
     ),
 ]
 
