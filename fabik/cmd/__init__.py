@@ -54,10 +54,26 @@ class DeployClassName(StrEnum):
 
 class GlobalState:
     cwd: Path
+    """ 当前工作目录。"""
+
     conf_file: Path
+    """ fabik 配置文件的绝对路径。"""
+
     env: str | None = None
+    """ env 环境，默认为空，不指定环境时，会使用 WORK_DIR 中的默认环境。"""
+
     force: bool = False
+    """ 强制覆盖存在的文件。 """
+
+    rename: bool = False
+    """ 是否重命名目标文件。 """
+
+    env_postfix: str = ""
+    """ 输出文件是否可包含 env 后缀。 """
+
     verbose: bool = False
+    """ 启用详细日志。 """
+
     output_dir: Path | None = None
     fabic_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
@@ -180,12 +196,15 @@ class GlobalState:
         """
         try:
             if self.verbose:
-                echo_info(f"""{self.conf_data=}
+                echo_info(
+                    f"""{self.conf_data=}
                 {self.cwd=!s}
                 {self.output_dir=!s}
                 {self.env=!s}
                 {tpl_name=!s}
-                {tpl_dir=!s}""", panel_title='GlobalState::load_conf_data()')
+                {tpl_dir=!s}""",
+                    panel_title="GlobalState::load_conf_data()",
+                )
             replacer = ConfigReplacer(
                 self.conf_data,
                 self.cwd,  # type: ignore
@@ -194,13 +213,15 @@ class GlobalState:
                 env_name=self.env,
                 verbose=self.verbose,
             )
+            # 立即写入文件
             target, final_target = replacer.set_writer(
-                tpl_name, self.force, target_postfix
+                tpl_name,
+                force=self.force,
+                rename=self.rename,
+                target_postfix=target_postfix,
+                immediately=True,
             )
 
-            # 写入文件
-            if replacer.writer:
-                replacer.writer.write_file(self.force)
         except FabikError as e:
             echo_error(e.err_msg)
             raise typer.Abort()
@@ -325,11 +346,16 @@ NoteForce = Annotated[
 NoteEnvPostfix = Annotated[
     bool, typer.Option(help="在生成的配置文件名称末尾加上环境名称后缀。")
 ]
-NoteReqirementsFileName = Annotated[
+NoteRequirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
-NoteOutputFile = Annotated[
-    Path | None, typer.Option("--output", "-o", help="指定输出文件的绝对路径。")
+NoteOutput = Annotated[
+    Path | None,
+    typer.Option(
+        "--output",
+        "-o",
+        help="Ouput to the specified path. It must be a absolute path.",
+    ),
 ]
 
 

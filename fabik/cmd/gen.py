@@ -1,4 +1,4 @@
-""" .. _fabik_cmd_gen:
+""".. _fabik_cmd_gen:
 
 fabik.cmd.gen
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -14,23 +14,12 @@ from pathlib import Path
 
 from fabik import util
 from fabik.error import echo_info, echo_warning, echo_error
-from fabik.cmd import global_state
+from fabik.cmd import global_state, NoteRequirementsFileName, NoteOutput, NoteForce
 
 
 class UUIDType(StrEnum):
     UUID1 = "uuid1"
     UUID4 = "uuid4"
-
-
-NoteForce = Annotated[
-    bool, typer.Option("--force", "-f", help="Force to overwrite the existing file.")
-]
-NoteReqirementsFileName = Annotated[
-    str, typer.Option(help="指定 requirements.txt 的文件名。")
-]
-NoteOutputFile = Annotated[
-    Path | None, typer.Option(help="指定输出文件的完整路径。")
-]
 
 
 def gen_password(
@@ -63,26 +52,28 @@ def gen_uuid(
 
 def gen_requirements(
     force: NoteForce = False,
-    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
-    output_file: NoteOutputFile = None,
+    requirements_file_name: NoteRequirementsFileName = "requirements.txt",
+    output_file: NoteOutput= None,
 ):
     """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
     # 确定输出文件路径
     if output_file is not None:
         # 使用指定的输出文件路径
-        requirements_txt_file = global_state.check_output_file(output_file, is_file=True)
+        requirements_txt_file = global_state.check_output_file(
+            output_file, is_file=True
+        )
     else:
         # 使用默认逻辑
         work_dir: Path = global_state.check_work_dir_or_use_cwd()
         requirements_txt_file = work_dir / requirements_file_name
-    
+
     # 检查文件是否已存在
     if requirements_txt_file.exists() and not force:
         echo_warning(
             f"{requirements_txt_file.absolute().as_posix()} 文件已存在，使用 --force 强制覆盖。"
         )
         raise typer.Exit()
-    
+
     try:
         # 执行 uv export 命令生成 requirements.txt
         subprocess.run(
@@ -101,7 +92,9 @@ def gen_requirements(
         )
         echo_info(f"{requirements_txt_file.absolute().as_posix()} 文件已成功生成！")
     except subprocess.CalledProcessError as e:
-        echo_error(f"生成 {requirements_txt_file.absolute().as_posix()} 失败: {e.stderr}")
+        echo_error(
+            f"生成 {requirements_txt_file.absolute().as_posix()} 失败: {e.stderr}"
+        )
         raise typer.Abort()
     except FileNotFoundError:
         echo_error("未找到 uv 命令，请确保已安装 uv 工具")

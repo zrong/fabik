@@ -8,21 +8,13 @@ venv 子命令相关函数
 
 import typer
 from typing import Annotated
-from enum import StrEnum
 
 from fabik.error import echo_error
-from fabik.cmd import global_state
-
-
-
-NoteReqirementsFileName = Annotated[
-    str, typer.Option(help="指定 requirements.txt 的文件名。")
-]
-
+from fabik.cmd import global_state, NoteRequirementsFileName
 
 
 def venv_init(
-    requirements_file_name: NoteReqirementsFileName = "requirements.txt",
+    requirements_file_name: NoteRequirementsFileName = "requirements.txt",
 ):
     """「远程」部署远程服务器的虚拟环境。"""
     try:

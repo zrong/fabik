@@ -269,25 +269,27 @@ class ConfigWriter:
                 json.dumps(self.replace_obj, ensure_ascii=False, indent=4)
             )
 
-    def write_file(self, force: bool = True):
+    def write_file(self, force: bool = True, rename: bool = False):
         """写入配置文件
         :param force: 若 force 为 False，则仅当文件不存在的时候才写入。
+        :param rename: 是否重命名原始文件。
         """
         if not self.dst_file.exists():
             self._write_file_by_type()
         elif force:
-            bak_file = self.dst_file.parent.joinpath(
-                f"{self.dst_file.name}.bak_{int(fabik.__now__.timestamp())}"
-            )
-            # 强制覆盖的时候备份原始文件
-            shutil.copyfile(self.dst_file, bak_file)
-            echo_warning(
-                f"备份文件 {self.dst_file.as_posix()} 到 {bak_file.as_posix()}。"
-            )
-            self._write_file_by_type()
+            if rename:
+                bak_file = self.dst_file.parent.joinpath(
+                    f"{self.dst_file.name}.bak_{int(fabik.__now__.timestamp())}"
+                )
+                # 强制覆盖的时候备份原始文件
+                shutil.copyfile(self.dst_file, bak_file)
+                echo_warning(
+                    f"备份文件 {self.dst_file.as_posix()} 到 {bak_file.as_posix()}。"
+                )
+                self._write_file_by_type()
         else:
             echo_error(
-                f"文件 {self.dst_file.as_posix()} 已存在。可使用 --force 强制覆盖。"
+                f"文件 {self.dst_file.as_posix()} 已存在。使用 --force 覆盖，使用 --rename 在覆盖前重命名。"
             )
 
 
@@ -506,7 +508,9 @@ class ConfigReplacer:
     def set_writer(
         self,
         tpl_name: str,
-        force=True,
+        *,
+        force: bool = True,
+        rename: bool = False,
         target_postfix: str = "",
         immediately: bool = False,
     ) -> tuple[Path, Path]:
@@ -529,7 +533,7 @@ class ConfigReplacer:
         )
 
         if immediately:
-            self.writer.write_file(force)
+            self.writer.write_file(force, rename)
         return target, final_target
 
 

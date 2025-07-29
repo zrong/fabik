@@ -12,24 +12,19 @@ from pathlib import Path
 
 from fabik.conf import config_validator_tpldir
 from fabik.error import echo_error
-from fabik.cmd import global_state
-
-NoteForce = Annotated[
-    bool, typer.Option("--force", "-f", help="Force to overwrite the existing file.")
-]
-NoteEnvPostfix = Annotated[
-    bool, typer.Option(help="在生成的配置文件名称末尾加上环境名称后缀。")
-]
+from fabik.cmd import global_state, NoteOutput, NoteForce, NoteRename, NoteEnvPostfix
 
 
 def conf_callback(
     force: NoteForce = False,
-    output_dir: Annotated[
-        Path | None, typer.Option(help="指定输出目录的完整路径。")
-    ] = None,
+    rename: NoteRename = False,
+    output_dir: NoteOutput = None,
+    env_postfix: NoteEnvPostfix = False,
 ):
     global_state.force = force
+    global_state.rename = rename
     global_state.output_dir = output_dir
+    global_state.env_postfix = env_postfix
 
 
 def conf_tpl(
@@ -39,7 +34,6 @@ def conf_tpl(
             help="Provide configuration file names based on the tpl directory."
         ),
     ],
-    env_postfix: NoteEnvPostfix = False,
 ):
     """[local] Initialize configuration file content based on the template files in the local tpl directory."""
     # 需要检查 tpl_dir 是否存在
@@ -60,7 +54,7 @@ def conf_tpl(
         global_state.write_config_file(
             tpl_name,
             tpl_dir=tpl_dir,
-            target_postfix=f".{global_state.env}" if env_postfix else "",
+            target_postfix=f".{global_state.env}" if global_state.env_postfix else "",
         )
 
 
@@ -75,5 +69,5 @@ def conf_make(
     global_state.load_conf_data(check=True)
     for f in file:
         global_state.write_config_file(
-            f, target_postfix=f".{global_state.env}" if env_postfix else ""
+            f, target_postfix=f".{global_state.env}" if global_state.env_postfix else ""
         )
