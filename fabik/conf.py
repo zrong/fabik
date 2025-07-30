@@ -288,7 +288,7 @@ class ConfigWriter:
                 echo_warning(
                     f"备份文件 {self.dst_file.as_posix()} 到 {bak_file.as_posix()}。"
                 )
-                self._write_file_by_type()
+            self._write_file_by_type()
         else:
             echo_error(
                 f"文件 {self.dst_file.as_posix()} 已存在。使用 --force 覆盖，使用 --rename 在覆盖前重命名。"
@@ -334,7 +334,7 @@ class TplWriter(ConfigWriter):
                 panel_title="TplWriter::_write_by_jinja()",
             )
         echo_info(
-            f"从模板 {self.tpl_filename} 创建文件{self.dst_file.as_posix()} 成功。"
+            f"从模板 {self.tpl_filename} 创建文件 {self.dst_file.as_posix()} 成功。"
         )
 
     def _write_file_by_type(self):
