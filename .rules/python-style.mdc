@@ -1,357 +1,545 @@
 ---
-description: Comprehensive guidelines for Python development, covering code organization, performance, security, testing, and more.  These rules promote maintainable, efficient, and secure Python codebases.
+description: Python 开发最佳实践和编码标准，专注于代码组织、设计模式、性能优化和测试策略
 globs: *.py
 ---
 
-# Python Best Practices and Coding Standards
+# Python 开发最佳实践和编码标准
 
-This document outlines comprehensive best practices and coding standards for Python development, aiming to promote clean, efficient, maintainable, and secure code.
+本文档概述了 Python 开发的最佳实践和编码标准，旨在促进简洁、高效、可维护和安全的代码。
 
-## 1. Code Organization and Structure
+## 1. 代码组织和结构
 
-* 永远使用 python 3.13 的最新标准。
-* 使用 4 个空格进行缩进，不使用制表符。
+* 永远使用 Python 3.13 的最新标准
+* 使用 4 个空格进行缩进，不使用制表符
 * 遵循 PEP 8 命名约定：
    - `lower_case_with_underscores` 用于函数和变量名
    - `CapitalizedWords` 用于类名
    - `UPPER_CASE_WITH_UNDERSCORES` 用于常量
-* 每行代码不超过 88 个字符。
+* 每行代码不超过 88 个字符
 * 使用类型注解提高代码可读性
 * 为所有公共函数、方法和类编写文档字符串
 
-### 1.1. Directory Structure Best Practices
+### 1.1. 项目结构最佳实践
 
-*   **Flat is better than nested (but not always).**  Start with a simple structure and refactor as needed.
-*   **Packages vs. Modules:** Use packages (directories with `__init__.py`) for logical grouping of modules.
-*   **package_name layout:** Consider using a `package_name` in root directory to separate application code from project-level files (pyproject.toml, README.md, etc.). This helps avoid import conflicts and clarifies the project's boundaries.
-*   **Typical Project Structure:**
+* **简单胜过复杂**：从简单结构开始，根据需要重构
+* **包 vs 模块**：使用包（带有 `__init__.py` 的目录）进行模块的逻辑分组
+* **单一职责原则**：每个模块应该有明确定义的目的
+* **导入顺序**：标准库、第三方库、本地库
 
+### 1.2. 模块组织最佳实践
+
+* **单一职责原则**：每个模块应该有明确的目的
+* **常量定义**：在模块级别定义常量（如 `MAX_ITERATIONS = 100`）
+* **显式 API**：使用 `__all__` 明确定义公共 API
+
+## 2. 设计模式和架构原则
+
+### 2.1. 职责分离原则
+
+#### 回调函数设计原则
+
+回调函数应该保持简单和单一职责：
+
+```python
+# ✅ 好的做法：回调函数只进行参数赋值
+def conf_callback(
+    force: bool = False,
+    rename: bool = False,
+    output_dir: Path | None = None,
+    output_file: Path | None = None,
+    env_postfix: bool = False,
+):
+    """配置回调函数 - 只进行参数赋值，不做验证"""
+    global_state.force = force
+    global_state.rename = rename
+    global_state.output_dir = output_dir
+    global_state.output_file = output_file
+    global_state.env_postfix = env_postfix
+
+# ❌ 避免的做法：在回调函数中进行复杂验证
+def bad_callback(output_dir, output_file):
+    # 不要在回调函数中进行验证逻辑
+    if output_file and output_dir:
+        raise ValueError("Cannot specify both output_file and output_dir")
+    # 验证逻辑应该在使用配置的地方进行
+```
+
+**核心原则**：
+- 回调函数只进行简单的参数赋值
+- 不在回调函数中进行参数验证或优先级处理
+- 具体的验证和处理逻辑由使用这些配置的命令负责
+- 保持职责清晰，便于测试和维护
+
+### 2.2. DRY 原则 - 避免代码重复
+
+#### 统一接口设计
+
+避免创建功能相似的重复方法：
+
+```python
+# ✅ 好的做法：统一的方法，通过可选参数扩展功能
+def set_writer(
+    self,
+    tpl_name: str,
+    *,
+    force: bool = True,
+    rename: bool = False,
+    target_postfix: str = "",
+    output_file: Path | None = None,  # 可选参数扩展功能
+    immediately: bool = False,
+) -> tuple[Path, Path]:
+    """统一的配置写入方法"""
+    if output_file is not None:
+        # 处理特定文件输出逻辑
+        return self._handle_file_output(output_file, tpl_name)
+    else:
+        # 处理默认输出逻辑
+        return self._handle_default_output(tpl_name, target_postfix)
+
+# ❌ 避免的做法：创建重复的方法
+def set_writer_with_file(self, tpl_name: str, output_file: Path):
+    """专门用于文件输出的方法 - 产生代码重复"""
+    # 这里的逻辑与 set_writer 重复
+    pass
+
+def set_writer_with_dir(self, tpl_name: str, output_dir: Path):
+    """专门用于目录输出的方法 - 产生代码重复"""
+    # 这里的逻辑与 set_writer 重复
+    pass
+```
+
+**核心原则**：
+- 通过可选参数而不是创建多个方法来扩展功能
+- 避免创建功能相似的重复方法
+- 使用内部辅助方法处理不同的逻辑分支
+- 保持单一入口点，便于维护和测试
+
+### 2.3. 项目架构层次
+
+#### Fabik 项目架构分析
+
+Fabik 项目遵循清晰的分层架构设计：
+
+```
+fabik/
+├── __main__.py          # 程序入口点 - 支持 python -m fabik 调用
+├── cli.py              # CLI接口层 - 命令注册和路由
+├── conf.py             # 配置管理层 - 配置解析和处理
+├── error.py            # 异常处理层 - 统一错误定义
+├── http.py             # 网络通信层 - HTTP客户端工具
+├── log.py              # 日志记录层 - 结构化日志
+├── tpl.py              # 模板定义层 - 内置模板
+├── cmd/                # 命令实现层
+│   ├── __init__.py     # 全局状态和类型定义
+│   ├── main.py         # 主命令实现
+│   ├── conf.py         # 配置命令实现
+│   ├── gen.py          # 生成命令实现
+│   ├── server.py       # 服务器命令实现
+│   └── venv.py         # 虚拟环境命令实现
+├── deploy/             # 部署抽象层
+│   ├── __init__.py     # 部署基类和通用功能
+│   ├── gunicorn.py     # Gunicorn部署策略
+│   ├── uwsgi.py        # uWSGI部署策略
+│   └── tmux.py         # Tmux部署策略
+└── util/               # 工具支持层
+    ├── __init__.py     # 工具模块初始化
+    ├── date.py         # 日期时间工具
+    ├── encrypt.py      # 加密解密工具
+    ├── func.py         # 通用函数库
+    ├── gen.py          # 生成工具核心
+    └── jinja_filter.py # Jinja2过滤器
+```
+
+#### 1. 表现层 (Presentation Layer)
+- **组件**: `fabik/cli.py`, `fabik/__main__.py`
+- **职责**: 用户接口、命令解析、参数验证
+- **特点**: 基于 Typer 的声明式命令定义
+
+#### 2. 应用层 (Application Layer)  
+- **组件**: `fabik/cmd/`
+- **职责**: 业务流程控制、命令实现、状态管理
+- **特点**: 命令模式的具体实现
+
+#### 3. 领域层 (Domain Layer)
+- **组件**: `fabik/conf.py`, `fabik/deploy/`
+- **职责**: 核心业务逻辑、配置管理、部署抽象
+- **特点**: 领域模型和业务规则
+
+#### 4. 基础设施层 (Infrastructure Layer)
+- **组件**: `fabik/util/`, `fabik/error.py`, `fabik/log.py`
+- **职责**: 工具函数、错误处理、日志记录
+- **特点**: 跨层次的支持服务
+
+### 2.4. 详细设计模式实现
+
+#### 命令模式 (Command Pattern)
+
+**应用位置**: CLI 子命令系统
+
+```python
+# fabik/cli.py
+main: typer.Typer = typer.Typer()
+
+sub_gen = typer.Typer(name='gen', help='Generate common strings.')
+sub_conf = typer.Typer(name='conf', help='Process configuration files.')
+sub_server = typer.Typer(name='server', help='Process remote server.')
+
+# 命令注册
+sub_gen.command('password')(gen_password)
+sub_conf.command('make')(conf_make)
+sub_server.command('deploy')(server_deploy)
+```
+
+**优势**:
+- 解耦命令的调用者和执行者
+- 便于添加新命令
+- 支持命令的撤销和重做（虽然当前未实现）
+
+#### 策略模式 (Strategy Pattern)
+
+**应用位置**: 部署系统
+
+```python
+# fabik/deploy/__init__.py
+class Deploy:
+    """部署策略的抽象基类"""
     
-    project_name/
-    ├── package_name/
-    │   ├── __init__.py
-    │   ├── cli.py  # Entry point
-    │   ├── module1.py
-    │   ├── module2.py
-    ├── tests/
-    │   ├── __init__.py
-    │   ├── test_module1.py
-    │   ├── test_module2.py
-    ├── docs/
-    │   ├── conf.py
-    │   ├── index.rst
-    ├── .gitignore
-    ├── pyproject.toml
-    ├── README.md
-    ├── uv.lock
+    def deploy(self):
+        """部署方法 - 由子类实现具体策略"""
+        raise NotImplementedError
+
+# fabik/deploy/gunicorn.py
+class GunicornDeploy(Deploy):
+    """Gunicorn部署策略"""
     
-
-### 1.2. File Naming Conventions
-
-*   **Modules:**  Lowercase, with underscores for readability (e.g., `my_module.py`).
-*   **Packages:** Lowercase (e.g., `my_package`). Avoid underscores unless necessary.
-*   **Tests:** Start with `test_` (e.g., `test_my_module.py`).
-
-### 1.3. Module Organization Best Practices
-
-*   **Single Responsibility Principle:** Each module should have a well-defined purpose.
-*   **Imports:**
-    *   Order: standard library, third-party, local.
-    *   Absolute imports are generally preferred (e.g., `from my_package.module1 import function1`).
-    *   Use explicit relative imports (`from . import sibling_module`) when dealing with complex package layouts where absolute imports are overly verbose or impractical.
-*   **Constants:**  Define module-level constants in uppercase (e.g., `MAX_ITERATIONS = 100`).
-*   **Dunder names:** `__all__`, `__version__`, etc. should be after the module docstring but before any imports (except `from __future__`).  Use `__all__` to explicitly define the public API.
-
-### 1.4. Component Architecture Recommendations
-
-*   **Layered Architecture:** Suitable for larger applications, separating concerns into presentation, business logic, and data access layers.
-*   **Microservices:**  For very large applications, consider breaking the system into smaller, independent services.
-*   **Hexagonal/Clean Architecture:** Emphasizes decoupling business logic from external dependencies like databases and frameworks.
-*   **Dependency Injection:** Use dependency injection to improve testability and reduce coupling.
-
-### 1.5. Code Splitting Strategies
-
-*   **By Functionality:**  Split code into modules based on distinct functionalities (e.g., user management, data processing).
-*   **By Layer:** Separate presentation, business logic, and data access code.
-*   **Lazy Loading:** Use `importlib.import_module()` to load modules on demand, improving startup time.
-*   **Conditional Imports:** Import modules only when needed, based on certain conditions.
-
-## 2. Common Patterns and Anti-patterns
-
-### 2.1. Design Patterns
-
-*   **Singleton:**  Restrict instantiation of a class to one object.
-*   **Factory:**  Create objects without specifying the exact class to be created.
-*   **Observer:**  Define a one-to-many dependency between objects so that when one object changes state, all its dependents are notified.
-*   **Strategy:**  Define a family of algorithms, encapsulate each one, and make them interchangeable.
-*   **Decorator:**  Add responsibilities to objects dynamically.
-*   **Context Manager:** Guarantees resources are properly cleaned up (e.g., files are closed).
-
-### 2.2. Recommended Approaches for Common Tasks
-
-*   **Data Validation:** Use libraries like `pydantic` or `marshmallow` for data validation and serialization.
-*   **Configuration Management:** Use libraries like `python-decouple`, `dynaconf` or standard library's `configparser` to manage environment-specific settings.
-*   **Logging:** Use the `logging` module for structured logging. Configure log levels and handlers appropriately.
-*   **Command-Line Interfaces:** Use `argparse`, `click` or `typer` for creating command-line interfaces.
-*   **Asynchronous Programming:** Use `asyncio` for I/O-bound and concurrency problems.
-
-### 2.3. Anti-patterns and Code Smells
-
-*   **God Class:** A class that does too much.  Break it down into smaller, more focused classes.
-*   **Shotgun Surgery:**  Making small changes to many different classes at once. Indicates poor cohesion.
-*   **Spaghetti Code:**  Unstructured and difficult-to-follow code.  Refactor using well-defined functions and classes.
-*   **Duplicate Code:**  Extract common code into reusable functions or classes (DRY - Don't Repeat Yourself).
-*   **Magic Numbers/Strings:**  Use named constants instead of hardcoded values.
-*   **Nested Callbacks:**  Avoid excessive nesting of callbacks. Use `async/await` or promises for better readability.
-*   **Premature Optimization:** Don't optimize code before identifying bottlenecks.
-
-### 2.4. State Management Best Practices
-
-*   **Stateless Functions:** Prefer stateless functions where possible.
-*   **Immutable Data:** Use immutable data structures to prevent accidental modification.
-*   **Explicit State:**  Manage state explicitly using classes or data structures.  Avoid relying on global variables.
-*   **Context Variables:** Use `contextvars` (Python 3.7+) for managing request-scoped state in asynchronous applications.
-*   **Redux-like patterns:** Consider redux-like patterns for managing client-side and complex application state.
-
-### 2.5. Error Handling Patterns
-
-*   **Specific Exceptions:** Catch specific exceptions rather than broad `Exception` or `BaseException`.
-*   **`try...except...finally`:** Use `finally` to ensure cleanup code is always executed.
-*   **Context Managers:**  Use context managers (`with open(...) as f:`) for resource management.
-*   **Logging Errors:** Log exceptions with complete traceback information.
-*   **Raising Exceptions:** Raise exceptions with informative error messages.
-*   **Custom Exceptions:** Create custom exception classes for specific error conditions.
-*   **Avoid using exceptions for control flow.** Exceptions should represent exceptional circumstances.
-
-## 3. Performance Considerations
-
-### 3.1. Optimization Techniques
-
-*   **Profiling:**  Use `cProfile` to identify performance bottlenecks.
-*   **Efficient Data Structures:**  Choose the right data structure for the task (e.g., `set` for membership testing, `dict` for lookups).
-*   **List Comprehensions and Generators:**  Use list comprehensions and generator expressions for concise and efficient code.
-*   **Vectorization with NumPy:**  Use NumPy for numerical computations, leveraging vectorized operations.
-*   **Just-In-Time Compilation (JIT):**  Consider using JIT compilers like Numba for performance-critical code.
-*   **Caching:** Implement caching mechanisms using `functools.lru_cache` or external caching libraries like Redis or Memcached.
-*   **String Concatenation:** Use `''.join(iterable)` for efficient string concatenation.
-*   **Avoid Global Variables:** Accessing local variables is faster than accessing global variables.
-*   **Cython:** Use Cython to write C extensions for Python, improving performance.
-
-### 3.2. Memory Management Considerations
-
-*   **Garbage Collection:**  Understand Python's garbage collection mechanism.
-*   **Object References:**  Be mindful of object references and circular dependencies, which can prevent garbage collection.
-*   **Memory Profiling:** Use `memory_profiler` to identify memory leaks.
-*   **Slots:** Use `__slots__` in classes to reduce memory footprint (disables `__dict__`).
-*   **Generators:** Use generators for processing large datasets without loading them into memory.
-*   **Data type sizing:** Use the most efficient data types possible to reduce memory use.
-
-### 3.3. Rendering Optimization
-
-*   N/A for core Python libraries. Relevant for GUI frameworks (e.g., Tkinter, PyQt, Kivy).
-*   For web development with frameworks such as Django, Flask, or Pyramid, use efficient templating, caching and database query optimizations.
-
-### 3.4. Bundle Size Optimization
-
-*   N/A for core Python libraries. Relevant for web applications or when creating executable bundles.
-*   Use tools like `PyInstaller` or `cx_Freeze` to create executable bundles.
-*   Minimize dependencies to reduce bundle size.
-*   Use code minification techniques.
-
-### 3.5. Lazy Loading Strategies
-
-*   **Module Loading:**  Use `importlib.import_module()` to load modules on demand.
-*   **Data Loading:** Load large datasets only when needed.
-*   **Deferred Execution:**  Use generators or coroutines to defer execution of code.
-
-## 4. Security Best Practices
-
-### 4.1. Common Vulnerabilities and Prevention
-
-*   **SQL Injection:**  Use parameterized queries or ORMs to prevent SQL injection attacks.
-*   **Cross-Site Scripting (XSS):** Sanitize user input and escape output to prevent XSS attacks.
-*   **Cross-Site Request Forgery (CSRF):**  Use CSRF tokens to protect against CSRF attacks.
-*   **Command Injection:**  Avoid executing arbitrary commands based on user input. If necessary, sanitize input carefully.
-*   **Path Traversal:**  Validate file paths to prevent path traversal attacks.
-*   **Denial of Service (DoS):** Implement rate limiting and input validation to protect against DoS attacks.
-*   **Pickle Deserialization:**  Avoid using `pickle` to deserialize untrusted data, as it can lead to arbitrary code execution. Use safer alternatives like JSON or Protocol Buffers.
-*   **Dependency Vulnerabilities:** Regularly audit and update dependencies to address security vulnerabilities.
-*   **Hardcoded Secrets:** Never hardcode secrets (passwords, API keys) in code. Use environment variables or secure configuration files.
-
-### 4.2. Input Validation Best Practices
-
-*   **Whitelisting:**  Validate input against a whitelist of allowed values.
-*   **Regular Expressions:** Use regular expressions to validate input formats.
-*   **Data Type Validation:**  Ensure input data types are correct.
-*   **Length Validation:**  Limit the length of input strings.
-*   **Sanitization:**  Remove or escape potentially harmful characters from input.
-*   **Use libraries:** Use libraries like `cerberus` and `schematics` to assist with validating the input.
-
-### 4.3. Authentication and Authorization Patterns
-
-*   **Authentication:**
-    *   Use strong password hashing algorithms (e.g., bcrypt, Argon2).
-    *   Implement multi-factor authentication (MFA).
-    *   Use secure session management techniques.
-    *   Consider using a dedicated authentication service (e.g., Auth0, Okta).
-*   **Authorization:**
-    *   Implement role-based access control (RBAC) or attribute-based access control (ABAC).
-    *   Use a permissions system to control access to resources.
-    *   Enforce the principle of least privilege.
-    *   Use access tokens (JWTs).
-
-### 4.4. Data Protection Strategies
-
-*   **Encryption:** Encrypt sensitive data at rest and in transit.
-*   **Data Masking:** Mask sensitive data when displaying it to users.
-*   **Tokenization:** Replace sensitive data with non-sensitive tokens.
-*   **Data Loss Prevention (DLP):** Implement DLP measures to prevent sensitive data from leaving the organization.
-*   **Regular backups and disaster recovery plans.**
-
-### 4.5. Secure API Communication
-
-*   **HTTPS:**  Always use HTTPS for API communication.
-*   **API Keys:**  Use API keys for authentication.
-*   **OAuth 2.0:**  Use OAuth 2.0 for delegated authorization.
-*   **Input validation**: Validate all API requests before processing.
-*   **Rate Limiting:** Implement rate limiting to prevent abuse.
-*   **Web Application Firewall (WAF)** Implement WAF to provide centralized security layer.
-
-## 5. Testing Approaches
-
-### 5.1. Unit Testing Strategies
-
-*   **Test Individual Units:** Test individual functions, classes, or modules in isolation.
-*   **Test-Driven Development (TDD):** Write tests before writing code.
-*   **Coverage:**  Aim for high test coverage.
-*   **Assertion Styles:** Use appropriate assertion methods (e.g., `assertEqual`, `assertTrue`, `assertRaises`).
-*   **Boundary conditions:** Test boundary conditions and edge cases.
-*   **Error conditions:** Test that exceptions are raised when appropriate.
-
-### 5.2. Integration Testing Approaches
-
-*   **Test Interactions:** Test the interactions between different modules or components.
-*   **Database Testing:** Test database interactions.
-*   **API Testing:** Test API endpoints.
-*   **Mock External Services:** Use mocks to simulate external services during integration tests.
-*   **Focus on key workflows.** Integration tests should exercise the most important user workflows.
-
-### 5.3. End-to-End Testing Recommendations
-
-*   **Test Entire System:** Test the entire system from end to end.
-*   **User Perspective:** Write tests from the perspective of the user.
-*   **Browser Automation:** Use browser automation tools like Selenium or Playwright.
-*   **Real-World Scenarios:** Simulate real-world scenarios in end-to-end tests.
-*   **Focus on critical paths.** End-to-end tests are expensive to write and maintain, so focus on the most critical paths.
-
-### 5.4. Test Organization Best Practices
-
-*   **Separate Test Directory:**  Keep tests in a separate `tests` directory.
-*   **Mirror Source Structure:**  Mirror the source code structure in the test directory.
-*   **Test Modules:** Create test modules for each source module.
-*   **Test Classes:**  Use test classes to group related tests.
-*   **Use a test runner:** Use `pytest` or `unittest` test runners.
-*   **Use fixtures:** Utilize fixtures to setup and tear down resources for tests.
-
-### 5.5. Mocking and Stubbing Techniques
-
-*   **`unittest.mock`:** Use the `unittest.mock` module for mocking and stubbing.
-*   **Patching:**  Use `patch` to replace objects with mocks during tests.
-*   **Side Effects:**  Define side effects for mocks to simulate different scenarios.
-*   **Mocking External Dependencies:** Mock external dependencies like databases, APIs, and file systems.
-*   **Use dependency injection for testability.** Dependency injection makes it easier to mock dependencies.
-
-## 6. Common Pitfalls and Gotchas
-
-### 6.1. Frequent Mistakes
-
-*   **Mutable Default Arguments:**  Avoid using mutable default arguments in function definitions.
-*   **Scope of Variables:**  Be aware of variable scope in nested functions.
-*   **`==` vs. `is`:**  Use `==` for value comparison and `is` for object identity comparison.
-*   **`try...except` Blocks:** Placing too much code inside try blocks. Keep try blocks as small as possible.
-*   **Ignoring Exceptions:** Swallowing exceptions without handling or logging them.
-*   **Incorrect indentation.**  Indentation errors are a common source of bugs.
-*   **Not using virtual environments.** Not using virtual environments can lead to dependency conflicts.
-
-### 6.2. Edge Cases
-
-*   **Floating-Point Arithmetic:** Be aware of the limitations of floating-point arithmetic.
-*   **Unicode Handling:** Handle Unicode strings carefully.
-*   **File Encoding:**  Specify file encoding when reading and writing files.
-*   **Time Zones:**  Handle time zones correctly.
-*   **Resource limits:** Be aware of and handle system resource limits (e.g., file handles, memory).
-
-### 6.3. Version-Specific Issues
-
-*   **Python 2 vs. Python 3:** Be aware of the differences between Python 2 and Python 3.
-*   **Syntax Changes:**  Be aware of syntax changes in different Python versions.
-*   **Library Compatibility:**  Ensure that libraries are compatible with the Python version being used.
-*   **Deprecated features.** Avoid using deprecated features.
-
-### 6.4. Compatibility Concerns
-
-*   **Operating Systems:** Test code on different operating systems (Windows, macOS, Linux).
-*   **Python Implementations:**  Consider compatibility with different Python implementations (CPython, PyPy, Jython).
-*   **Database Versions:** Ensure compatibility with different database versions.
-*   **External Libraries:**  Be aware of compatibility issues with external libraries.
-
-### 6.5. Debugging Strategies
-
-*   **`pdb`:**  Use the `pdb` debugger for interactive debugging.
-*   **Logging:**  Use logging to track program execution.
-*   **Print Statements:** Use print statements for simple debugging.
-*   **Assertions:**  Use assertions to check for expected conditions.
-*   **Profiling:** Use profilers to identify performance bottlenecks.
-*   **Code Analysis Tools:** Use code analysis tools like pylint or flake8 to detect potential problems.
-*   **Remote debugging:** Use remote debugging tools when debugging code running on remote servers.
-
-## 7. Tooling and Environment
-
-### 7.1. Recommended Development Tools
-
-*   **IDEs:** PyCharm, VS Code (with Python extension), Sublime Text.
-*   **Virtual Environment Managers:** `venv` (built-in), `virtualenv`, `conda`, `pipenv`.
-*   **Package Managers:** `uv` (default), `pip`, `conda`, `poetry`.
-*   **Debuggers:** `pdb`, IDE debuggers.
-*   **Profilers:** `cProfile`, `memory_profiler`.
-*   **Linters:** `pylint`, `flake8`.
-*   **Formatters:** `black`, `autopep8`, `YAPF`.
-*   **Static Analyzers:** `mypy`, `pytype`.
-*    **Notebook environments**: Jupyter Notebook, Jupyter Lab, Google Colab.
-
-### 7.2. Build Configuration Best Practices
-
-*   **`pyproject.toml`:**  Use `pyproject.toml` for build configuration (PEP 518, PEP 621).
-*   **`setup.py`:**  Use `setup.py` for legacy projects (but prefer `pyproject.toml` for new projects).
-*   **Dependency Management:**  Specify dependencies in `requirements.txt` or `pyproject.toml`.
-*   **Virtual Environments:**  Use virtual environments to isolate project dependencies.
-*   **Reproducible builds:** Ensure reproducible builds by pinning dependencies.
-
-### 7.3. Linting and Formatting Recommendations
-
-*   **PEP 8:** Adhere to PEP 8 style guidelines.
-*   **Linters:** Use linters to enforce code style and detect potential problems.
-*   **Formatters:** Use formatters to automatically format code according to PEP 8.
-*   **Pre-commit Hooks:** Use pre-commit hooks to run linters and formatters before committing code.
-*   **Consistent Style:** Maintain a consistent code style throughout the project.
-
-### 7.4. Deployment Best Practices
-
-*   **Virtual Environments:** Deploy applications in virtual environments.
-*   **Dependency Management:**  Install dependencies using `pip install -r requirements.txt` or `poetry install`.
-*   **Process Managers:** Use process managers like `systemd`, `Supervisor`, or `Docker` to manage application processes.
-*   **Web Servers:**  Use web servers like Gunicorn or uWSGI to serve web applications.
-*   **Load Balancing:** Use load balancers to distribute traffic across multiple servers.
-*   **Containerization:** Use containerization technologies like Docker to package and deploy applications.
-*   **Infrastructure as Code (IaC)** Manage infrastructure using IaC tools like Terraform or CloudFormation.
-
-### 7.5. CI/CD Integration Strategies
-
-*   **Continuous Integration (CI):** Automatically build and test code on every commit.
-*   **Continuous Delivery (CD):** Automatically deploy code to staging or production environments.
-*   **CI/CD Tools:** Use CI/CD tools like Jenkins, GitLab CI, GitHub Actions, CircleCI, or Travis CI.
-*   **Automated Testing:**  Include automated tests in the CI/CD pipeline.
-*   **Code Analysis:** Integrate code analysis tools into the CI/CD pipeline.
-*   **Automated deployments.** Automate the deployment process to reduce manual effort and errors.
-
-By adhering to these best practices and coding standards, developers can create Python code that is more robust, maintainable, and secure.
+    def deploy(self):
+        # Gunicorn特定的部署逻辑
+        pass
+
+# fabik/deploy/uwsgi.py  
+class UwsgiDeploy(Deploy):
+    """uWSGI部署策略"""
+    
+    def deploy(self):
+        # uWSGI特定的部署逻辑
+        pass
+```
+
+**优势**:
+- 支持多种部署方式
+- 易于扩展新的部署策略
+- 运行时切换部署方式
+
+#### 单例模式 (Singleton Pattern)
+
+**应用位置**: 全局状态管理
+
+```python
+# fabik/cmd/__init__.py
+class GlobalState:
+    """全局状态管理器"""
+    cwd: Path
+    conf_file: Path
+    env: str | None = None
+    force: bool = False
+    # ... 其他状态属性
+
+# 全局单例实例
+global_state = GlobalState()
+```
+
+**优势**:
+- 确保全局状态的一致性
+- 避免状态分散导致的不一致问题
+- 便于状态的集中管理
+
+#### 观察者模式 (Observer Pattern)
+
+**应用位置**: 配置验证系统
+
+```python
+# fabik/cmd/__init__.py
+class GlobalState:
+    _config_validators: list[Callable] = []
+    
+    def register_config_validator(self, validator_func: Callable) -> None:
+        """注册配置验证器"""
+        if callable(validator_func) and validator_func not in self._config_validators:
+            self._config_validators.append(validator_func)
+    
+    def _check_conf_data(self) -> bool:
+        """执行所有验证器"""
+        for validator in self._config_validators:
+            if not validator(self.fabik_config):
+                return False
+        return True
+
+# 注册默认验证器
+global_state.register_config_validator(config_validator_name_workdir)
+```
+
+**优势**:
+- 支持可插拔的验证机制
+- 解耦验证逻辑和核心逻辑
+- 便于扩展新的验证规则
+
+### 2.5. 常用设计模式
+
+* **单例模式**：限制类的实例化为一个对象（如全局状态管理）
+* **工厂模式**：创建对象而不指定要创建的确切类
+* **策略模式**：定义算法族，封装每个算法，使它们可以互换
+* **观察者模式**：定义对象间的一对多依赖关系
+* **装饰器模式**：动态地为对象添加职责
+* **上下文管理器**：保证资源得到正确清理
+
+### 2.6. 代码质量特征
+
+#### 1. 可测试性
+```python
+# 依赖注入设计
+class ConfigReplacer:
+    def __init__(self, fabik_conf: dict, work_dir: Path, **kwargs):
+        self.fabik_conf = fabik_conf
+        self.work_dir = work_dir
+        # 支持外部注入配置
+
+# 纯函数设计
+def merge_dict(x: dict, y: dict, z: dict | None = None) -> dict:
+    """纯函数，便于单元测试"""
+    # 不修改输入参数，返回新对象
+```
+
+#### 2. 可扩展性
+```python
+# 插件式验证器
+global_state.register_config_validator(custom_validator)
+
+# 策略模式支持新部署方式
+class CustomDeploy(Deploy):
+    def deploy(self):
+        # 自定义部署逻辑
+        pass
+```
+
+#### 3. 可维护性
+```python
+# 清晰的错误层次
+class FabikError(Exception): pass
+class ConfigError(FabikError): pass
+class PathError(FabikError): pass
+
+# 统一的输出接口
+def echo_info(message: str, **kwargs): pass
+def echo_warning(message: str, **kwargs): pass
+def echo_error(message: str, **kwargs): pass
+```
+
+#### 4. 可读性
+```python
+# 类型注解和文档字符串
+def getcfg(
+    self, 
+    *args, 
+    default_value: Any = None, 
+    data: str | dict = FABIK_DATA
+) -> Any:
+    """递归获取 conf 中的值。
+    
+    :param args: 需要读取的参数，支持多级调用
+    :param default_value: 找不到这个键就提供一个默认值
+    :param data: 提供一个 dict，否则使用 cfg_data
+    :return: 获取的配置值
+    """
+```
+
+### 2.7. 依赖管理策略
+
+#### 1. 分层依赖
+```python
+# 高层模块依赖抽象
+from fabik.conf import FabikConfig  # 而非具体实现
+
+# 低层模块实现抽象
+class FabikConfig:
+    def load_root_data(self) -> dict[str, Any]:
+        # 具体实现
+        pass
+```
+
+#### 2. 依赖倒置
+```python
+# 接口定义
+class Deploy:
+    def deploy(self): 
+        raise NotImplementedError
+
+# 高层使用接口
+def build_deploy_conn(self, deploy_class: type["Deploy"]):
+    return deploy_class(...)  # 依赖抽象而非具体类
+```
+
+#### 3. 循环依赖避免
+- 通过分层设计避免循环依赖
+- 使用接口和抽象类解耦
+- 延迟导入和类型注解
+
+### 2.8. 配置管理架构
+
+#### 1. 多层配置合并
+```python
+def merge_dict(x: dict, y: dict, z: dict | None = None) -> dict:
+    """递归合并配置字典"""
+    # 基础配置 + 环境配置 + 用户配置
+```
+
+#### 2. 模板化配置
+```python
+def get_replace_obj(self, tpl_name: str) -> dict:
+    """获取替换后的配置对象"""
+    # 1. 获取原始配置
+    # 2. 应用环境变量
+    # 3. Jinja2 模板渲柔
+    # 4. 返回最终配置
+```
+
+#### 3. 验证机制
+```python
+def config_validator_name_workdir(config: FabikConfig) -> bool:
+    """配置验证器示例"""
+    # 检查必要配置项
+    # 验证路径有效性
+    # 返回验证结果
+```
+
+### 2.9. 异常处理架构
+
+#### 1. 异常层次设计
+```python
+FabikError                    # 根异常
+├── ConfigError              # 配置相关错误
+├── PathError                # 路径相关错误  
+├── EnvError                 # 环境相关错误
+└── TplError                 # 模板相关错误
+```
+
+#### 2. 错误传播机制
+```python
+def load_conf_data(self) -> dict[str, Any]:
+    try:
+        # 核心逻辑
+        pass
+    except PathError as e:
+        echo_error(e.err_msg)
+        raise typer.Abort()  # 转换为CLI退出
+    except ConfigError as e:
+        echo_error(e.err_msg)
+        raise typer.Abort()
+```
+
+#### 3. 用户友好错误
+```python
+class FabikError(Exception):
+    def __init__(self, err_type: Exception, err_msg: str):
+        self.err_type = err_type
+        self.err_msg = err_msg
+        # 保留原始错误信息，提供用户友好消息
+```
+
+### 2.10. 反模式和代码异味
+
+* **上帝类**：做太多事情的类，应该分解为更小、更专注的类
+* **散弹手术**：同时对许多不同类进行小修改，表明内聚性差
+* **意大利面条代码**：无结构且难以理解的代码，使用定义良好的函数和类重构
+* **重复代码**：将公共代码提取到可重用的函数或类中（DRY 原则）
+* **魔法数字/字符串**：使用命名常量代替硬编码值
+
+* **上帝类**：做太多事情的类，应该分解为更小、更专注的类
+* **散弹手术**：同时对许多不同类进行小修改，表明内聚性差
+* **意大利面条代码**：无结构且难以理解的代码，使用定义良好的函数和类重构
+* **重复代码**：将公共代码提取到可重用的函数或类中（DRY 原则）
+* **魔法数字/字符串**：使用命名常量代替硬编码值
+
+## 3. 错误处理模式
+
+* **特定异常**：捕获特定异常而不是广泛的 `Exception` 或 `BaseException`
+* **try...except...finally**：使用 `finally` 确保清理代码总是被执行
+* **上下文管理器**：使用上下文管理器进行资源管理
+* **日志记录错误**：记录异常时包含完整的回溯信息
+* **抛出异常**：抛出包含信息性错误消息的异常
+* **自定义异常**：为特定错误条件创建自定义异常类
+* **避免将异常用于控制流**：异常应该表示异常情况
+
+## 4. 性能考虑
+
+### 4.1. 优化技术
+
+* **分析**：使用 `cProfile` 识别性能瓶颈
+* **高效数据结构**：为任务选择正确的数据结构
+* **列表推导和生成器**：使用列表推导和生成器表达式编写简洁高效的代码
+* **缓存**：使用 `functools.lru_cache` 或外部缓存库实现缓存机制
+* **字符串连接**：使用 `''.join(iterable)` 进行高效的字符串连接
+* **避免全局变量**：访问局部变量比访问全局变量更快
+
+### 4.2. 内存管理考虑
+
+* **垃圾回收**：了解 Python 的垃圾回收机制
+* **对象引用**：注意对象引用和循环依赖
+* **内存分析**：使用 `memory_profiler` 识别内存泄漏
+* **生成器**：使用生成器处理大数据集而不将其加载到内存中
+
+## 5. 测试方法
+
+### 5.1. 单元测试策略
+
+* **测试独立单元**：独立测试单个函数、类或模块
+* **测试驱动开发（TDD）**：在编写代码之前编写测试
+* **覆盖率**：争取高测试覆盖率
+* **边界条件**：测试边界条件和边缘情况
+* **错误条件**：测试适当时是否抛出异常
+
+### 5.2. 模拟和存根技术
+
+* **`unittest.mock`**：使用 `unittest.mock` 模块进行模拟和存根
+* **补丁**：使用 `patch` 在测试期间用模拟替换对象
+* **模拟外部依赖**：模拟数据库、API 和文件系统等外部依赖
+* **使用依赖注入提高可测试性**：依赖注入使模拟依赖更容易
+
+## 6. 常见陷阱和问题
+
+### 6.1. 常见错误
+
+* **可变默认参数**：避免在函数定义中使用可变默认参数
+* **变量作用域**：注意嵌套函数中的变量作用域
+* **`==` vs `is`**：使用 `==` 进行值比较，使用 `is` 进行对象身份比较
+* **try...except 块**：在 try 块中放置太多代码，保持 try 块尽可能小
+* **忽略异常**：吞没异常而不处理或记录它们
+
+### 6.2. 调试策略
+
+* **`pdb`**：使用 `pdb` 调试器进行交互式调试
+* **日志记录**：使用日志记录跟踪程序执行
+* **断言**：使用断言检查预期条件
+* **分析**：使用分析器识别性能瓶颈
+* **代码分析工具**：使用 pylint 或 flake8 等代码分析工具检测潜在问题
+
+## 7. 工具和环境
+
+### 7.1. 推荐开发工具
+
+* **IDE**：PyCharm、VS Code（带Python扩展）
+* **虚拟环境管理器**：`venv`（内置）、`virtualenv`、`conda`
+* **包管理器**：`uv`（推荐）、`pip`、`poetry`
+* **调试器**：`pdb`、IDE调试器
+* **分析器**：`cProfile`、`memory_profiler`
+* **代码检查器**：`pylint`、`flake8`
+* **格式化器**：`black`、`autopep8`
+* **静态分析器**：`mypy`、`pytype`
+
+### 7.2. 构建配置最佳实践
+
+* **`pyproject.toml`**：使用 `pyproject.toml` 进行构建配置
+* **依赖管理**：在 `pyproject.toml` 中指定依赖
+* **虚拟环境**：使用虚拟环境隔离项目依赖
+* **可重现构建**：通过固定依赖确保可重现构建
+
+遵循这些最佳实践和编码标准，开发者可以创建更强大、可维护和安全的 Python 代码。

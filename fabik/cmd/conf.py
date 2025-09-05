@@ -12,22 +12,21 @@ from pathlib import Path
 
 from fabik.conf import config_validator_tpldir
 from fabik.error import echo_error
-from fabik.cmd import global_state, NoteOutput, NoteForce, NoteRename, NoteEnvPostfix
+from fabik.cmd import global_state, NoteOutputDir, NoteOutputFile, NoteForce, NoteRename, NoteEnvPostfix
 
 
 def conf_callback(
     force: NoteForce = False,
     rename: NoteRename = False,
-    output_dir: NoteOutput = None,
+    output_dir: NoteOutputDir = None,
+    output_file: NoteOutputFile = None,
     env_postfix: NoteEnvPostfix = False,
 ):
     global_state.force = force
     global_state.rename = rename
     global_state.output_dir = output_dir
+    global_state.output_file = output_file
     global_state.env_postfix = env_postfix
-    
-    if output_dir is not None and not output_dir.is_absolute():
-        global_state.output_dir = global_state.check_output(output_dir, is_file=False)
 
 
 def conf_tpl(

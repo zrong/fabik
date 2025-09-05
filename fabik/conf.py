@@ -145,15 +145,15 @@ class FabikConfig:
     def load_root_data(self) -> dict[str, Any]:
         """获取主配置文件 duel.toml 并进行简单的检测"""
         if self.root_data is None:
+            fabik_toml_file = self.fabik_toml.resolve().absolute() if self.fabik_toml else Path(FABIK_TOML_FILE)
             try:
                 if self.fabik_toml is None:
                     raise ConfigError(
                         err_type=FileNotFoundError(),
                         err_msg=f"{FABIK_TOML_FILE} not found.",
                     )
-                fabik_toml_file = self.fabik_toml.resolve().absolute()
                 self.root_data = tomllib.loads(
-                    self.fabik_toml.read_text(encoding="utf-8")
+                    fabik_toml_file.read_text(encoding="utf-8")
                 )
             except FileNotFoundError as e:
                 raise ConfigError(err_type=e, err_msg=f"{fabik_toml_file} not found.")
@@ -535,18 +535,26 @@ class ConfigReplacer:
         force: bool = True,
         rename: bool = False,
         target_postfix: str = "",
+        output_file: Path | None = None,
         immediately: bool = False,
     ) -> tuple[Path, Path]:
         """写入配置文件。
         :param tpl_name: 配置中的根名称，一般情况下是一个表。
+        :param output_file: 可选的具体输出文件路径，如果提供则优先使用
         """
         replace_obj = self.get_replace_obj(tpl_name)
-        # 使用 output_dir
-        output_dir: Path = self.work_dir if self.output_dir is None else self.output_dir
-        # 不加后缀的文件路径
-        target = output_dir.joinpath(tpl_name)
-        # 加入后缀的文件路径，大部分情况下与 target 相同
-        final_target = output_dir.joinpath(f"{tpl_name}{target_postfix}")
+        
+        if output_file is not None:
+            # 使用指定的文件路径
+            final_target = output_file
+            target = output_file
+        else:
+            # 使用 output_dir 逻辑
+            output_dir: Path = self.work_dir if self.output_dir is None else self.output_dir
+            # 不加后缀的文件路径
+            target = output_dir.joinpath(tpl_name)
+            # 加入后缀的文件路径，大部分情况下与 target 相同
+            final_target = output_dir.joinpath(f"{tpl_name}{target_postfix}")
 
         # 基于是否提供了 tpl_dir 决定使用哪种写入器
         self.writer = (
@@ -560,6 +568,7 @@ class ConfigReplacer:
         if immediately:
             self.writer.write_file(force, rename)
         return target, final_target
+
 
 
 def check_none(value: Any, key_list: list[str]) -> Any:

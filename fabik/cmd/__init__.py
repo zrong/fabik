@@ -14,7 +14,9 @@ __all__ = [
     "NoteRename",
     "NoteForce",
     "NoteEnvPostfix",
-    "NoteReqirementsFileName",
+    "NoteRequirementsFileName",
+    "NoteOutputDir",
+    "NoteOutputFile",
 ]
 
 from enum import StrEnum
@@ -69,13 +71,14 @@ class GlobalState:
     rename: bool = False
     """ 是否重命名目标文件。 """
 
-    env_postfix: str = ""
+    env_postfix: bool = False
     """ 输出文件是否可包含 env 后缀。 """
 
     verbose: bool = False
     """ 启用详细日志。 """
 
     output_dir: Path | None = None
+    output_file: Path | None = None
     fabik_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
@@ -119,8 +122,8 @@ class GlobalState:
         try:
 
             self.load_conf_data(False)
-            work_dir_str = self.fabik_config.getcfg("WORK_DIR")
-            work_dir = Path(work_dir_str) if work_dir_str is None else self.cwd
+            work_dir_str = self.fabik_config.getcfg("WORK_DIR") if self.fabik_config else None
+            work_dir = Path(work_dir_str) if work_dir_str is not None else self.cwd
             if not work_dir.is_absolute():
                 echo_warning(f"{work_dir} is not a absolute path.")
                 raise typer.Exit()
@@ -195,32 +198,51 @@ class GlobalState:
         :param target_postfix: 配置文件的后缀
         """
         try:
+            # 处理参数优先级和路径验证
+            output_dir, output_file = self._resolve_output_parameters()
+            
             if self.verbose:
                 echo_info(
                     f"""{self.conf_data=}
                 {self.cwd=!s}
-                {self.output_dir=!s}
+                {output_dir=!s}
+                {output_file=!s}
                 {self.env=!s}
                 {tpl_name=!s}
                 {tpl_dir=!s}""",
                     panel_title="GlobalState::write_config_file()",
                 )
+            
+            # 创建 ConfigReplacer，根据情况使用 output_dir
             replacer = ConfigReplacer(
                 self.conf_data,
                 self.cwd,  # type: ignore
-                output_dir=self.output_dir,
+                output_dir=output_dir,
                 tpl_dir=tpl_dir,
                 env_name=self.env,
                 verbose=self.verbose,
             )
-            # 立即写入文件
-            target, final_target = replacer.set_writer(
-                tpl_name,
-                force=self.force,
-                rename=self.rename,
-                target_postfix=target_postfix,
-                immediately=True,
-            )
+            
+            # 调用统一的 set_writer 方法，根据情况传递 output_file
+            if output_file is not None:
+                # 处理 output_file 的路径解析
+                resolved_output_file = self._resolve_output_file_target(output_file, target_postfix)
+                target, final_target = replacer.set_writer(
+                    tpl_name,
+                    force=self.force,
+                    rename=self.rename,
+                    output_file=resolved_output_file,
+                    immediately=True,
+                )
+            else:
+                # 使用原有的 output_dir 逻辑
+                target, final_target = replacer.set_writer(
+                    tpl_name,
+                    force=self.force,
+                    rename=self.rename,
+                    target_postfix=target_postfix,
+                    immediately=True,
+                )
 
         except FabikError as e:
             echo_error(e.err_msg)
@@ -228,6 +250,54 @@ class GlobalState:
         except Exception as e:
             echo_error(str(e))
             raise typer.Abort()
+    
+    def _resolve_output_parameters(self) -> tuple[Path | None, Path | None]:
+        """解析输出参数的优先级和路径验证
+        
+        :return: (resolved_output_dir, resolved_output_file)
+        """
+        # 处理参数优先级：--output-file 优先于 --output-dir
+        if self.output_file is not None:
+            # 使用 --output-file 参数
+            if self.output_dir is not None:
+                # 显示警告：同时提供了两个参数
+                echo_warning("Both --output-file and --output-dir provided. --output-dir will be ignored.")
+            
+            return None, self.output_file
+        elif self.output_dir is not None:
+            # 使用 --output-dir 参数，需要验证路径
+            if not self.output_dir.is_absolute():
+                resolved_output_dir = self.check_output(self.output_dir, is_file=False)
+            else:
+                resolved_output_dir = self.output_dir
+            return resolved_output_dir, None
+        else:
+            # 都未提供，使用默认
+            return None, None
+    
+    def _resolve_output_file_target(self, output_file: Path, target_postfix: str) -> Path:
+        """解析输出文件的目标路径
+        
+        :param output_file: 输出文件路径
+        :param target_postfix: 配置文件的后缀
+        :return: 解析后的输出文件路径
+        """
+        if not output_file.is_absolute():
+            resolved_output_file = self.check_output(output_file, is_file=True)
+        else:
+            resolved_output_file = output_file
+        
+        if self.env_postfix and self.env:
+            resolved_output_file = resolved_output_file.with_name(
+                resolved_output_file.stem + f"-{self.env}" + resolved_output_file.suffix
+            )
+        
+        if target_postfix:
+            resolved_output_file = resolved_output_file.with_name(
+                resolved_output_file.stem + target_postfix + resolved_output_file.suffix
+            )
+        
+        return resolved_output_file
 
     def copy_tpl_file(self, keyname: str, filename: str, rename: bool = False):
         """复制文件到目标文件夹。
@@ -349,12 +419,21 @@ NoteEnvPostfix = Annotated[
 NoteRequirementsFileName = Annotated[
     str, typer.Option(help="指定 requirements.txt 的文件名。")
 ]
-NoteOutput = Annotated[
+NoteOutputDir = Annotated[
     Path | None,
     typer.Option(
-        "--output",
+        "--output-dir",
+        "--output",  # 保留旧参数作为别名
         "-o",
-        help="Ouput to the specified path.",
+        help="Output to the specified directory.",
+    ),
+]
+
+NoteOutputFile = Annotated[
+    Path | None,
+    typer.Option(
+        "--output-file",
+        help="Output to the specified file path (overrides --output-dir).",
     ),
 ]
 

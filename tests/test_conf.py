@@ -460,3 +460,116 @@ work_dir = "{{ WORK_DIR }}"
 
         # 验证 write_file 被调用，使用 force=True
         mock_writer.write_file.assert_called_with(True)
+
+    def test_conf_callback_with_output_file(self, temp_dir):
+        """测试 conf_callback 处理 --output-file 参数"""
+        from fabik.cmd.conf import conf_callback
+        
+        output_file = temp_dir / "custom_config.json"
+        
+        # 执行 conf_callback
+        conf_callback(
+            force=False,
+            rename=False, 
+            output_dir=None,
+            output_file=output_file,
+            env_postfix=False
+        )
+        
+        # 验证结果：只进行简单赋值
+        assert global_state.output_file == output_file
+        assert global_state.output_dir is None
+        assert global_state.force is False
+        assert global_state.rename is False
+        assert global_state.env_postfix is False
+    
+    def test_conf_callback_with_both_output_params(self, temp_dir):
+        """测试 conf_callback 同时提供 --output-file 和 --output-dir 参数"""
+        from fabik.cmd.conf import conf_callback
+        
+        output_dir = temp_dir / "configs"
+        output_dir.mkdir()
+        output_file = temp_dir / "custom_config.json"
+        
+        # 执行 conf_callback
+        conf_callback(
+            force=False,
+            rename=False,
+            output_dir=output_dir,
+            output_file=output_file,
+            env_postfix=False
+        )
+        
+        # 验证结果：只进行简单赋值，不处理优先级
+        assert global_state.output_file == output_file
+        assert global_state.output_dir == output_dir
+    
+    def test_conf_callback_with_only_output_dir(self, temp_dir):
+        """测试 conf_callback 仅提供 --output-dir 参数"""
+        from fabik.cmd.conf import conf_callback
+        
+        output_dir = temp_dir / "configs"
+        output_dir.mkdir()
+        
+        # 执行 conf_callback
+        conf_callback(
+            force=True,
+            rename=True,
+            output_dir=output_dir,
+            output_file=None,
+            env_postfix=True
+        )
+        
+        # 验证结果：只进行简单赋值
+        assert global_state.output_dir == output_dir
+        assert global_state.output_file is None
+        assert global_state.force is True
+        assert global_state.rename is True
+        assert global_state.env_postfix is True
+    
+    def test_resolve_output_parameters_priority(self, temp_dir, mocker):
+        """测试 _resolve_output_parameters 方法的参数优先级处理"""
+        from fabik.cmd import global_state
+        
+        output_dir = temp_dir / "configs"
+        output_dir.mkdir()
+        output_file = temp_dir / "custom_config.json"
+        
+        # 设置 global_state
+        global_state.cwd = temp_dir
+        global_state.output_dir = output_dir
+        global_state.output_file = output_file
+        
+        # 模拟 echo_warning
+        mock_echo_warning = mocker.patch("fabik.error.echo_warning")
+        
+        # 测试参数优先级处理
+        resolved_output_dir, resolved_output_file = global_state._resolve_output_parameters()
+        
+        # 验证结果：--output-file 优先
+        assert resolved_output_dir is None
+        assert resolved_output_file == output_file
+        
+        # 验证警告信息
+        mock_echo_warning.assert_called_once_with(
+            "Both --output-file and --output-dir provided. --output-dir will be ignored."
+        )
+    
+    def test_resolve_output_parameters_dir_only(self, temp_dir):
+        """测试 _resolve_output_parameters 方法仅处理 output_dir"""
+        from fabik.cmd import global_state
+        
+        output_dir = temp_dir / "configs"
+        output_dir.mkdir()
+        
+        # 设置 global_state  
+        global_state.cwd = temp_dir
+        global_state.output_dir = output_dir
+        global_state.output_file = None
+        
+        # 测试仅有 output_dir
+        resolved_output_dir, resolved_output_file = global_state._resolve_output_parameters()
+        
+        # 验证结果
+        assert resolved_output_dir == output_dir
+        assert resolved_output_file is None
