@@ -20,7 +20,6 @@ __all__ = [
 ]
 
 from enum import StrEnum
-from faulthandler import is_enabled
 import shutil
 from pathlib import Path
 from typing import Any, Callable

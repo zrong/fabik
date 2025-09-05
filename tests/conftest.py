@@ -39,6 +39,6 @@ def mock_echo_functions(mocker) -> Dict[str, Any]:
     mocks = {
         'echo_info': mocker.patch('fabik.cmd.echo_info'),
         'echo_warning': mocker.patch('fabik.cmd.echo_warning'),
-        'echo_error': mocker.patch('fabik.cmd.echo_error')
+        'echo_error': mocker.patch('fabik.cmd.conf.echo_error')
     }
     return mocks 

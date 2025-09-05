@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fabik import util
 from fabik.error import echo_info, echo_warning, echo_error
-from fabik.cmd import global_state, NoteRequirementsFileName, NoteOutput, NoteForce
+from fabik.cmd import global_state, NoteRequirementsFileName, NoteOutputFile, NoteForce
 
 
 class UUIDType(StrEnum):
@@ -53,7 +53,7 @@ def gen_uuid(
 def gen_requirements(
     force: NoteForce = False,
     requirements_file_name: NoteRequirementsFileName = "requirements.txt",
-    output_file: NoteOutput = None,
+    output_file: NoteOutputFile = None,
 ):
     """使用 uv 命令为当前项目生成 requirements.txt 依赖文件。"""
     # 确定输出文件路径

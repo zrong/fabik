@@ -10,7 +10,9 @@ import tomli_w
 
 import typer
 import jinja2
-from fabik.cmd import conf_tpl, conf_make, global_state, config_validator_tpldir
+from fabik.cmd.conf import conf_tpl, conf_make
+from fabik.cmd import global_state
+from fabik.conf import config_validator_tpldir
 from fabik.error import PathError, ConfigError
 
 
@@ -59,7 +61,8 @@ class TestConfCommands:
         mock_write_config_file = mocker.patch("fabik.cmd.GlobalState.write_config_file")
 
         # 执行测试
-        conf_tpl(["test1", "test2"], env_postfix=False)
+        global_state.env_postfix = False
+        conf_tpl(["test1", "test2"])
 
         # 验证结果
         assert mock_write_config_file.call_count == 2
@@ -101,7 +104,8 @@ class TestConfCommands:
         mock_write_config_file = mocker.patch("fabik.cmd.GlobalState.write_config_file")
 
         # 执行测试
-        conf_tpl(["config"], env_postfix=True)
+        global_state.env_postfix = True
+        conf_tpl(["config"])
 
         # 验证结果
         mock_write_config_file.assert_called_once_with(
@@ -132,8 +136,9 @@ class TestConfCommands:
         )
 
         # 执行测试，应该抛出异常
+        global_state.env_postfix = False
         with pytest.raises(typer.Abort):
-            conf_tpl(["nonexistent"], env_postfix=False)
+            conf_tpl(["nonexistent"])
 
         # 验证错误信息
         mock_echo_functions["echo_error"].assert_called_once()
@@ -149,8 +154,9 @@ class TestConfCommands:
         mock_load_conf_data.side_effect = typer.Abort()
 
         # 执行测试，应该抛出异常
+        global_state.env_postfix = False
         with pytest.raises(typer.Abort):
-            conf_tpl(["test"], env_postfix=False)
+            conf_tpl(["test"])
 
         # 验证 config_validator_tpldir 被注册
         assert len(global_state._config_validators) > 0
@@ -169,7 +175,8 @@ class TestConfCommands:
         mock_write_config_file = mocker.patch("fabik.cmd.GlobalState.write_config_file")
 
         # 执行测试
-        conf_make(["app.json", "db.toml"], env_postfix=False)
+        global_state.env_postfix = False
+        conf_make(["app.json", "db.toml"])
 
         # 验证结果
         mock_load_conf_data.assert_called_once_with(check=True)
@@ -191,7 +198,8 @@ class TestConfCommands:
         mock_write_config_file = mocker.patch("fabik.cmd.GlobalState.write_config_file")
 
         # 执行测试
-        conf_make(["config.json"], env_postfix=True)
+        global_state.env_postfix = True
+        conf_make(["config.json"])
 
         # 验证结果
         mock_write_config_file.assert_called_once_with(
@@ -222,9 +230,9 @@ class TestConfCommands:
         mock_fabik_config = MagicMock()
         mock_fabik_config.getcfg.side_effect = lambda *args, **kwargs: (
             conf_data["TPL_DIR"]
-            if args == ("TPL_DIR")
+            if args == ("TPL_DIR",)
             else conf_data["WORK_DIR"]
-            if args == ("WORK_DIR")
+            if args == ("WORK_DIR",)
             else None
         )
         mock_fabik_config.root_data = conf_data
@@ -252,16 +260,16 @@ class TestConfCommands:
         mock_replacer_instance.writer = mock_writer
 
         # 执行测试
-        conf_tpl(["test.json"], env_postfix=False)
+        global_state.env_postfix = False
+        conf_tpl(["test.json"])
 
         # 验证结果
         mock_config_replacer.assert_called_once_with(
-            conf_data, work_dir=temp_dir, tpl_dir=tpl_dir, env_name="test"
+            conf_data, temp_dir, output_dir=None, tpl_dir=tpl_dir, env_name="test", verbose=False
         )
         mock_replacer_instance.set_writer.assert_called_once_with(
-            "test.json", False, ""
+            "test.json", force=False, rename=False, target_postfix="", immediately=True
         )
-        mock_writer.write_file.assert_called_once_with(False)
 
 
 class TestConfCommandsIntegration:
@@ -311,9 +319,9 @@ work_dir = "{{ WORK_DIR }}"
         mock_fabik_config = MagicMock()
         mock_fabik_config.getcfg.side_effect = lambda *args, **kwargs: (
             fabik_toml_content["TPL_DIR"]
-            if args == ("TPL_DIR")
-            else mock_fabik_config["WORK_DIR"]
-            if args == ("WORK_DIR")
+            if args == ("TPL_DIR",)
+            else fabik_toml_content["WORK_DIR"]
+            if args == ("WORK_DIR",)
             else None
         )
         mock_fabik_config.root_data = fabik_toml_content
@@ -347,13 +355,13 @@ work_dir = "{{ WORK_DIR }}"
         mock_replacer.writer = mock_writer
 
         # 执行 conf_tpl 命令
-        conf_tpl(["config.json", "settings.toml"], env_postfix=False)
+        global_state.env_postfix = False
+        conf_tpl(["config.json", "settings.toml"])
 
         # 验证 ConfigReplacer 被正确调用
         assert mock_replacer_class.call_count == 2
-        mock_replacer.set_writer.assert_any_call("config.json", False, "")
-        mock_replacer.set_writer.assert_any_call("settings.toml", False, "")
-        assert mock_writer.write_file.call_count == 2
+        mock_replacer.set_writer.assert_any_call("config.json", force=False, rename=False, target_postfix="", immediately=True)
+        mock_replacer.set_writer.assert_any_call("settings.toml", force=False, rename=False, target_postfix="", immediately=True)
 
     def test_conf_make_integration(self, temp_dir, mocker):
         """集成测试 conf_make 命令"""
@@ -397,13 +405,13 @@ work_dir = "{{ WORK_DIR }}"
         mock_replacer.writer = mock_writer
 
         # 执行 conf_make 命令
-        conf_make(["database.json", "app.json"], env_postfix=False)
+        global_state.env_postfix = False
+        conf_make(["database.json", "app.json"])
 
         # 验证 ConfigReplacer 被正确调用
         assert mock_replacer_class.call_count == 2
-        mock_replacer.set_writer.assert_any_call("database.json", False, "")
-        mock_replacer.set_writer.assert_any_call("app.json", False, "")
-        assert mock_writer.write_file.call_count == 2
+        mock_replacer.set_writer.assert_any_call("database.json", force=False, rename=False, target_postfix="", immediately=True)
+        mock_replacer.set_writer.assert_any_call("app.json", force=False, rename=False, target_postfix="", immediately=True)
 
     def test_conf_make_with_force(self, temp_dir, mocker):
         """测试 conf_make 命令使用 force 参数覆盖现有文件"""
@@ -449,17 +457,32 @@ work_dir = "{{ WORK_DIR }}"
 
         # 不使用 force 参数
         global_state.force = False
-        conf_make(["config.json"], env_postfix=False)
-
-        # 验证 write_file 被调用，使用 force=False
-        mock_writer.write_file.assert_called_with(False)
+        global_state.env_postfix = False
+        conf_make(["config.json"])
 
         # 使用 force 参数
         global_state.force = True
-        conf_make(["config.json"], env_postfix=False)
+        global_state.env_postfix = False
+        conf_make(["config.json"])
 
-        # 验证 write_file 被调用，使用 force=True
-        mock_writer.write_file.assert_called_with(True)
+        # 验证 set_writer 被正确调用
+        assert mock_replacer.set_writer.call_count == 2
+        # 验证第一次调用（force=False）
+        mock_replacer.set_writer.assert_any_call(
+            "config.json",
+            force=False,
+            rename=False,
+            target_postfix="",
+            immediately=True,
+        )
+        # 验证第二次调用（force=True）
+        mock_replacer.set_writer.assert_any_call(
+            "config.json",
+            force=True,
+            rename=False,
+            target_postfix="",
+            immediately=True,
+        )
 
     def test_conf_callback_with_output_file(self, temp_dir):
         """测试 conf_callback 处理 --output-file 参数"""
@@ -541,7 +564,7 @@ work_dir = "{{ WORK_DIR }}"
         global_state.output_file = output_file
         
         # 模拟 echo_warning
-        mock_echo_warning = mocker.patch("fabik.error.echo_warning")
+        mock_echo_warning = mocker.patch("fabik.cmd.echo_warning")
         
         # 测试参数优先级处理
         resolved_output_dir, resolved_output_file = global_state._resolve_output_parameters()
