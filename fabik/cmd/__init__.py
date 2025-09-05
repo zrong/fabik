@@ -76,16 +76,16 @@ class GlobalState:
     """ 启用详细日志。 """
 
     output_dir: Path | None = None
-    fabic_config: FabikConfig | None = None
+    fabik_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
     deploy_conn: "Deploy" = None  # type: ignore # noqa: F821
     
     @property
     def conf_data(self) -> dict[str, Any]:
-        if self.fabic_config is None:
+        if self.fabik_config is None:
             return {}
-        return self.fabic_config.root_data or {}
+        return self.fabik_config.root_data or {}
 
     def register_config_validator(self, validator_func: Callable) -> None:
         """注册一个配置验证函数，用于验证配置数据。
@@ -100,13 +100,13 @@ class GlobalState:
 
     def _check_conf_data(self) -> bool:
         """执行所有已注册的配置验证器"""
-        if not self.fabic_config:
+        if not self.fabik_config:
             return False
 
         # 运行所有注册的验证器
         for validator in self._config_validators:
             try:
-                if not validator(self.fabic_config):
+                if not validator(self.fabik_config):
                     return False
             except Exception as e:
                 echo_error(f"Config validation error: {str(e)}")
@@ -119,7 +119,7 @@ class GlobalState:
         try:
 
             self.load_conf_data(False)
-            work_dir_str = self.fabic_config.getcfg("WORK_DIR")
+            work_dir_str = self.fabik_config.getcfg("WORK_DIR")
             work_dir = Path(work_dir_str) if work_dir_str is None else self.cwd
             if not work_dir.is_absolute():
                 echo_warning(f"{work_dir} is not a absolute path.")
@@ -162,8 +162,8 @@ class GlobalState:
         file_not_found_err_msg: str = 'Please call "fabik init" to generate a "fabik.toml" file.',
     ) -> dict[str, Any]:
         try:
-            self.fabic_config = FabikConfig(self.cwd, cfg=self.conf_file)
-            self.fabic_config.load_root_data()
+            self.fabik_config = FabikConfig(self.cwd, cfg=self.conf_file)
+            self.fabik_config.load_root_data()
             if check:
                 self._check_conf_data()
             return self.conf_data
@@ -236,13 +236,13 @@ class GlobalState:
         """
         split_path = keyname.split("/")
 
-        if self.fabic_config is None:
+        if self.fabik_config is None:
             echo_warning("Please perform GlobalState.load_conf_data first.")
             raise typer.Exit()
 
-        config_validator_tpldir(self.fabic_config)
+        config_validator_tpldir(self.fabik_config)
         # 源文件夹
-        srcfiledir = Path(self.fabic_config.getcfg("TPL_DIR"))
+        srcfiledir = Path(self.fabik_config.getcfg("TPL_DIR"))
         # 目标文件夹
         dstfiledir = self.cwd
         while len(split_path) > 1:
@@ -281,7 +281,7 @@ class GlobalState:
         """创建一个远程部署连接。"""
         try:
             # 确保配置已加载
-            if self.fabic_config is None:
+            if self.fabik_config is None:
                 self.load_conf_data(check=True)
 
             # 使用已加载的配置
@@ -331,7 +331,7 @@ class GlobalState:
     cwd={self.cwd!s}, 
     conf_file={self.conf_file!s}, 
     force={self.force}, 
-    fabic_config={self.fabic_config!s}
+    fabik_config={self.fabik_config!s}
 )"""
 
 

@@ -33,7 +33,7 @@ def server_callback(
 def server_deploy():
     """「远程」部署项目到远程服务器。"""
     global_state.deploy_conn.rsync(
-        exclude=global_state.fabic_config.getcfg("RSYNC_EXCLUDE", [])
+        exclude=global_state.fabik_config.getcfg("RSYNC_EXCLUDE", [])
     )  # type: ignore # noqa: F821
     global_state.deploy_conn.put_config(force=True)  # type: ignore # noqa: F821
 

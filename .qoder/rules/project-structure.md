@@ -1,0 +1,1 @@
+../../.rules/project-structure.mdc

@@ -22,7 +22,7 @@ class TestConfCommands:
         global_state.cwd = None
         global_state.env = None
         global_state.conf_file = None
-        global_state.fabic_config = None
+        global_state.fabik_config = None
         global_state.force = False
         global_state._config_validators = []
 
@@ -44,7 +44,7 @@ class TestConfCommands:
         mock_fabik_config = MagicMock()
         mock_fabik_config.getcfg.return_value = str(tpl_dir)
         mock_fabik_config.root_data = {"ENV": {"dev": {}}}
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 模拟 load_conf_data 方法
         mocker.patch(
@@ -86,7 +86,7 @@ class TestConfCommands:
         mock_fabik_config = MagicMock()
         mock_fabik_config.getcfg.return_value = str(tpl_dir)
         mock_fabik_config.root_data = {"ENV": {"prod": {}}}
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 模拟 load_conf_data 方法
         mocker.patch(
@@ -123,7 +123,7 @@ class TestConfCommands:
         mock_fabik_config = MagicMock()
         mock_fabik_config.getcfg.return_value = str(tpl_dir)
         mock_fabik_config.root_data = {}
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 模拟 load_conf_data 方法
         mocker.patch(
@@ -228,7 +228,7 @@ class TestConfCommands:
             else None
         )
         mock_fabik_config.root_data = conf_data
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 模拟 load_conf_data 方法
         mocker.patch("fabik.cmd.GlobalState.load_conf_data", return_value=conf_data)
@@ -272,7 +272,7 @@ class TestConfCommandsIntegration:
         global_state.cwd = None
         global_state.env = None
         global_state.conf_file = None
-        global_state.fabic_config = None
+        global_state.fabik_config = None
         global_state.force = False
         global_state._config_validators = []
 
@@ -317,7 +317,7 @@ work_dir = "{{ WORK_DIR }}"
             else None
         )
         mock_fabik_config.root_data = fabik_toml_content
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 设置 global_state
         global_state.cwd = temp_dir
@@ -370,7 +370,7 @@ work_dir = "{{ WORK_DIR }}"
         # 模拟 FabikConfig
         mock_fabik_config = MagicMock()
         mock_fabik_config.root_data = fabik_toml_content
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 设置 global_state
         global_state.cwd = temp_dir
@@ -422,7 +422,7 @@ work_dir = "{{ WORK_DIR }}"
         # 模拟 FabikConfig
         mock_fabik_config = MagicMock()
         mock_fabik_config.root_data = fabik_toml_content
-        global_state.fabic_config = mock_fabik_config
+        global_state.fabik_config = mock_fabik_config
 
         # 设置 global_state
         global_state.cwd = temp_dir

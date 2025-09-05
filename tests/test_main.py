@@ -21,7 +21,7 @@ class TestMainInit:
         global_state.cwd = None
         global_state.env = None
         global_state.conf_file = None
-        global_state.fabic_config = None
+        global_state.fabik_config = None
 
     def test_init_new_config_file(self, temp_dir, mocker, mock_echo_functions):
         """测试创建新的配置文件"""
