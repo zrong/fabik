@@ -3,7 +3,7 @@ fabik is a library for Python command line application.
 -----------------------
 """
 
-__version__ = '25.7.2'
+__version__ = '25.7.3'
 __author__ = 'zrong'
 __name__ = 'fabik'
 __email__ = 'zrongzrong@gmail.com'

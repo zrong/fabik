@@ -3,17 +3,12 @@ Tests for fabik.cmd module's conf_tpl and conf_make commands
 """
 
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
-import json
-import tomli_w
+from unittest.mock import MagicMock, call
 
 import typer
-import jinja2
 from fabik.cmd.conf import conf_tpl, conf_make
 from fabik.cmd import global_state
 from fabik.conf import config_validator_tpldir
-from fabik.error import PathError, ConfigError
 
 
 class TestConfCommands:

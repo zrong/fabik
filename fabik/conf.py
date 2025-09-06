@@ -404,6 +404,9 @@ class ConfigReplacer:
         # 增加 {DEPLOY_DIR} 的值进行替换
         if isinstance(self.deploy_dir, Path):
             replace_obj["DEPLOY_DIR"] = self.deploy_dir.as_posix()
+        if self.env_name:
+            replace_obj["ENV_NAME"] = self.env_name
+
         return replace_obj
 
     def check_env_name(self):
