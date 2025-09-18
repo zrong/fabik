@@ -8,7 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import typer
 import jinja2
-from fabik.cmd import main_init, global_state
+from fabik.cmd.main import main_init
+from fabik.cmd import global_state
 from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
 from fabik.error import PathError, ConfigError
 

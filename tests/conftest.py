@@ -37,8 +37,8 @@ def global_state() -> GlobalState:
 def mock_echo_functions(mocker) -> Dict[str, Any]:
     """Mock echo 函数"""
     mocks = {
-        'echo_info': mocker.patch('fabik.cmd.echo_info'),
-        'echo_warning': mocker.patch('fabik.cmd.echo_warning'),
-        'echo_error': mocker.patch('fabik.cmd.conf.echo_error')
+        'echo_info': mocker.patch('fabik.error.echo_info'),
+        'echo_warning': mocker.patch('fabik.error.echo_warning'),
+        'echo_error': mocker.patch('fabik.error.echo_error')
     }
     return mocks 
