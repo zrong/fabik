@@ -10,7 +10,7 @@ import typer
 import jinja2
 from fabik.cmd.main import main_init
 from fabik.cmd import global_state
-from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_TOML_SIMPLE_TPL
+from fabik.tpl import FABIK_TOML_FILE, FABIK_TOML_TPL, FABIK_ENV_FILE
 from fabik.error import PathError, ConfigError
 
 
@@ -68,7 +68,7 @@ class TestMainInit:
         
         # 验证写入文件的调用
         mock_write_text.assert_called_once_with("mock_config_content")
-        assert mock_jinja_template.call_args[0][0] == FABIK_TOML_SIMPLE_TPL
+        assert mock_jinja_template.call_args[0][0] == FABIK_TOML_TPL
 
     def test_init_with_full_format(self, temp_dir, mocker, mock_echo_functions):
         """测试使用完整格式创建配置文件"""
@@ -226,20 +226,6 @@ class TestMainInit:
 
     def test_template_syntax(self):
         """测试模板语法是否正确，使用真实的模板数据"""
-        # 测试简单模板
-        try:
-            template = jinja2.Template(FABIK_TOML_SIMPLE_TPL)
-            result = template.render(
-                create_time="2023-01-01",
-                fabik_version="0.1.0",
-                NAME="test_project",
-                WORK_DIR="/path/to/project"
-            )
-            assert "test_project" in result
-            assert "/path/to/project" in result
-        except jinja2.exceptions.TemplateSyntaxError as e:
-            pytest.fail(f"Simple template has syntax error: {e}")
-        
         # 测试完整模板
         try:
             template = jinja2.Template(FABIK_TOML_TPL)
@@ -267,14 +253,6 @@ class TestMainInit:
             'WORK_DIR': str(temp_dir)
         }
         
-        # 测试简单模板
-        simple_template = jinja2.Template(FABIK_TOML_SIMPLE_TPL)
-        simple_result = simple_template.render(**test_data)
-        
-        # 验证简单模板的渲染结果
-        assert 'test_project' in simple_result
-        assert str(temp_dir) in simple_result
-        
         # 测试完整模板
         full_template = jinja2.Template(FABIK_TOML_TPL)
         full_result = full_template.render(**test_data)
@@ -289,12 +267,10 @@ class TestMainInit:
         simple_file = temp_dir / 'simple_config.toml'
         full_file = temp_dir / 'full_config.toml'
         
-        simple_file.write_text(simple_result)
         full_file.write_text(full_result)
         
         assert simple_file.exists()
         assert full_file.exists()
         
         # 读取文件内容，验证是否与渲染结果一致
-        assert simple_file.read_text() == simple_result
         assert full_file.read_text() == full_result

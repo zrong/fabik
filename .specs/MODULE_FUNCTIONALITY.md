@@ -242,8 +242,8 @@ class TplError(FabikError)      # 模板异常
 #### `tpl.py` - 模板定义
 
 **内置模板：**
-- `FABIK_TOML_SIMPLE_TPL`: 简化配置模板
-- `FABIK_TOML_TPL`: 完整配置模板
+- `FABIK_TOML_TPL`: 主配置文件模板
+- `FABIK_ENV_TPL`:  环境配置文件模板
 - `SYSTEMD_USER_UNIT_SERVICE_TPL`: Systemd 服务模板
 
 #### `log.py` - 日志系统

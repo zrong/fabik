@@ -6,19 +6,29 @@
 fabik.toml
 -----------------
 
-fabik.toml 是 ``fabik`` 的主配置文件。它应该跟随项目源码一起被提交到 VCS。
+``fabik.toml`` 是 ``fabik`` 的主配置文件。它 **应该** 跟随项目源码一起被提交到 VCS。
 
 由于 TOML 格式的特点，我们可以把所有的配置文件的生成和替换在一个单独的文件中完成，这让我们的配置更容易理解。
 感谢 TOML。
 
 关于 TOML 格式的介绍请阅读： https://toml.io/
 
-fabik.toml 的模板：
-
-- `fabik.tpl::FABIK_TOML_SIMPLE_TPL` - 简易模板，适合基本的项目配置
-- `fabik.tpl::FABIK_TOML_FULL_TPL` - 全功能模板，适合功能强大的项目配置
+fabik.toml 的模板： `fabik.tpl::FABIK_TOML_TPL`
 
 完整的 fabik.toml 配置文件保存在 `samples/fabik.toml` 中，欢迎查看。
+
+.. _dot_fabik_env:
+
+.fabik.env
+-------------
+
+``.fabik.env`` 是 ``fabik`` 的环境配置文件，用于保存敏感、仅本地可用、多变的配置。它 **不应该** 被提交到 VCS。
+
+``.fabik.env`` 文件遵循 dotenv 标准，使用 python-dotenv 模块进行解析。
+
+``.fabik.env`` 的模板： `fabik.tpl::FABIK_ENV_TPL`
+
+完整的 ``.fabik.env`` 配置文件保存在 `samples/.fabik.env` 中，欢迎查看。
 
 .. _fabik_substitution:
 

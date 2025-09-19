@@ -30,7 +30,7 @@ from fabik.error import (
     PathError,
     TplError,
 )
-from fabik.tpl import FABIK_TOML_FILE
+from fabik.tpl import FABIK_TOML_FILE, FABIK_ENV_FILE
 
 
 FABIK_DATA: str = "root_data"
@@ -82,16 +82,22 @@ def merge_dict(x: dict, y: dict, z: dict | None = None) -> dict:
 
 
 class FabikConfig:
-    """解析和处理 FABIK_TOML 配置文件。"""
+    """解析和处理 FABIK 配置文件。"""
 
     root_data: dict[str, Any] | None = None
-    """ 保存 FABIK_TOML 中载入的配置。"""
+    """ 保存 FABIK_TOML_FILE 中载入的配置。"""
+    
+    env_data: dict[str, Any] | None = None
+    """ 存储 FABIK_ENV_FILE 文件中的配置。"""
 
     __work_dir: Path | None = None
     """ 保存工作文件夹所在路径。"""
 
     fabik_toml: Path | None = None
     """ 保存 FABIK_TOML 文件路径。"""
+
+    fabik_env: Path | None = None
+    """ 保存 FABIK_ENV 文件路径。"""
 
     def __init__(
         self,
@@ -140,7 +146,7 @@ class FabikConfig:
 
     @property
     def file_exists(self) -> bool:
-        """返回配置文件 DUEL_TOML 是否存在。"""
+        """返回配置文件 FABIK_TOML 是否存在。"""
         return self.fabik_toml is not None and self.fabik_toml.exists()
 
     def load_root_data(self) -> dict[str, Any]:

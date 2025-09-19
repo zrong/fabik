@@ -7,31 +7,11 @@ fabik.tpl
 Provide template support.
 """
 
-
 FABIK_TOML_FILE: str = 'fabik.toml'
 """ Main config file name. """
 
-
-FABIK_TOML_SIMPLE_TPL: str = """
-###########################################
-# fabik main config file
-#
-# @author:  zrong(https://zengrong.net)
-# @source:  https://github.com/zrong/fabik.git
-# @create:  {{ create_time }}
-# @version: {{ fabik_version }}
-# 
-###########################################
-# use NAME to define your project name.
-NAME = '{{ NAME }}'
-
-# Define project source code folder, default is the absolute path of fabik command run folder.
-WORK_DIR = "{{ WORK_DIR }}"
-
-# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
-TPL_DIR = "{{ WORK_DIR }}/tpls"
-"""
-""" This is a template for fabik main config file. """
+FABIK_ENV_FILE: str = '.fabik.env'
+""" Main environment file name. """
 
 FABIK_TOML_TPL: str = """
 ###########################################
@@ -42,28 +22,14 @@ FABIK_TOML_TPL: str = """
 # @create:  {{ create_time }}
 # @version: {{ fabik_version }}
 # 
-#
 # Use { { } } to include variable names, which will be replaced with specific values, two curly braces should be continuous, no content should be included, such as no spaces.
 #
-# NAME: project name, defined in config file
+# NAME: project name, defined in fabik.toml or .fabik.env, if you define it in two files, the value in .fabik.env will be used.
 # WORK_DIR: absolute path of project source code folder
-# DEPLOY_DIR: absolute path of deploy folder on server
+# TPL_DIR: absolute path of template folder
 ###########################################
-
 # use NAME to define your project name.
 NAME = '{{ NAME }}'
-
-# Define project source code folder, default is the absolute path of fabik command run folder.
-WORK_DIR = "{{ WORK_DIR }}"
-
-# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
-TPL_DIR = "{{ WORK_DIR }}/tpls"
-
-# DEPLOY_DIR is the absolute path of deploy folder on server
-DEPLOY_DIR = '/srv/app/{{ NAME }}'
-
-# Python executable name, default is 'python3', you can use a absolute path to specify a specific python executable.
-PYE = 'python3'
 
 # Allow to replace environment variables.
 # The following { { } } variables will be replaced with environment variables. Two curly braces should be continuous, no content should be included, such as no spaces.
@@ -76,7 +42,6 @@ PYE = 'python3'
 #
 # ADMIN_NAME
 # ADMIN_PASSWORD
-# SECRET_KEY
 #
 # You can add environment variables yourself, as long as the variable name in the config file is the same.
 REPLACE_ENVIRON = [
@@ -97,8 +62,27 @@ REPLACE_ENVIRON = [
 work_dir = "/Users/zrong/tool/my_new_tool"
 tpl_dir = "/Users/zrong/tool/my_new_tool/tpls"
 
+#==============================================
+[ENV.test.ROOT]
+# DEPLOY_DIR is the absolute path of deploy folder on server
+DEPLOY_DIR = '/srv/app/{{ NAME }}'
+
+# Python executable name, default is 'python3', you can use a absolute path to specify a specific python executable.
+PYE = 'python3'
 """
 """ This is a template for fabik main config file. """
+
+FABIK_ENV_TPL: str = """
+# fabik environment config file
+
+# Define project source code folder, default is the absolute path of fabik command run folder.
+WORK_DIR="{{ WORK_DIR }}"
+
+# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
+TPL_DIR="{{ WORK_DIR }}/tpls"
+"""
+
+""" This is a template for fabik environment file. """
 
 SYSTEMD_USER_UNIT_SERVICE_TPL = """
 [Unit]
