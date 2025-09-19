@@ -77,29 +77,53 @@ def main_init(
     ] = False,
     force: NoteForce = False,
 ):
-    """[local] Initialize fabik project, create fabik.toml configuration file in the working directory."""
+    """[local] Initialize fabik project, create fabik.toml and .fabik.env configuration files in the working directory."""
     # 对于 init 命令，直接使用 global_state.cwd，因为此时可能还没有配置文件
     work_dir: Path = global_state.cwd
 
-    value = jinja2.Template(
-        tpl.FABIK_TOML_TPL if full_format else tpl.FABIK_TOML_SIMPLE_TPL
-    ).render(
-        create_time=f"{fabik.__now__!s}",
-        fabik_version=fabik.__version__,
-        WORK_DIR=work_dir.absolute().as_posix(),
-    )
+    # 准备模板变量
+    template_vars = {
+        "create_time": f"{fabik.__now__!s}",
+        "fabik_version": fabik.__version__,
+        "WORK_DIR": work_dir.absolute().as_posix(),
+        "NAME": work_dir.name,  # 使用目录名作为默认项目名
+    }
+
+    # 创建 fabik.toml
+    toml_content = jinja2.Template(tpl.FABIK_TOML_TPL).render(**template_vars)
+
+    # 创建 .fabik.env  
+    env_content = jinja2.Template(tpl.FABIK_ENV_TPL).render(**template_vars)
 
     toml_file = work_dir.joinpath(tpl.FABIK_TOML_FILE)
+    env_file = work_dir.joinpath(tpl.FABIK_ENV_FILE)
 
-    if toml_file.exists():
-        if force:
-            # 如果强制覆盖，直接写入文件
-            echo_warning(f"{toml_file!s} already exists. Overwriting it.")
+    # 检查文件存在性和处理覆盖逻辑
+    files_to_create = [(toml_file, toml_content), (env_file, env_content)]
+    files_to_write = []  # 实际需要写入的文件列表
+    has_existing_files = False  # 是否有已存在的文件
+
+    for file_path, content in files_to_create:
+        if file_path.exists():
+            has_existing_files = True
+            if force:
+                echo_warning(f"Overwriting {file_path!s}.")
+                files_to_write.append((file_path, content))
+            else:
+                echo_warning(f"{file_path!s} already exists. Skipping.")
         else:
-            # 如果不强制覆盖，提示文件存在并退出
-            echo_warning(f"{toml_file!s} already exists. Use --force to overwrite it.")
-            raise typer.Exit()
+            # 文件不存在，需要创建
+            files_to_write.append((file_path, content))
+    
+    # 如果有已存在的文件但未使用 --force，且没有任何文件需要写入，则提示并退出
+    if has_existing_files and not force and not files_to_write:
+        echo_warning("All configuration files already exist. Use --force to overwrite them.")
+        raise typer.Exit()
 
-    # 写入配置文件
-    toml_file.write_text(value)
-    echo_info(f"{toml_file} has been created.")
+    # 写入需要创建或覆盖的文件
+    if files_to_write:
+        for file_path, content in files_to_write:
+            file_path.write_text(content)
+            echo_info(f"{file_path} has been created.")
+    else:
+        echo_info("No files need to be created.")

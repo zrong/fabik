@@ -118,6 +118,8 @@ class FabikConfig:
             self.fabik_toml = FabikConfig.gen_fabik_toml(
                 work_dir=work_dir, conf_file=cfg
             )
+            # 新增：同时初始化环境文件路径
+            self.fabik_env = FabikConfig.gen_fabik_env(work_dir=work_dir)
 
     @staticmethod
     def gen_work_dir(work_dir: Path | str | None = None) -> Path:
@@ -144,14 +146,44 @@ class FabikConfig:
             conf_file = work_dir.joinpath(conf_file)
         return conf_file.resolve().absolute()
 
+    @staticmethod
+    def gen_fabik_env(*, work_dir: Path | str | None = None) -> Path:
+        """生成 .fabik.env 配置文件路径。"""
+        work_dir = FabikConfig.gen_work_dir(work_dir)
+        env_file = work_dir.joinpath(FABIK_ENV_FILE)
+        return env_file.resolve().absolute()
+
     @property
     def file_exists(self) -> bool:
         """返回配置文件 FABIK_TOML 是否存在。"""
         return self.fabik_toml is not None and self.fabik_toml.exists()
 
+    @property
+    def env_file_exists(self) -> bool:
+        """返回环境配置文件 .fabik.env 是否存在。"""
+        return self.fabik_env is not None and self.fabik_env.exists()
+
+    @property  
+    def both_files_exist(self) -> bool:
+        """返回两个配置文件是否都存在。"""
+        return self.file_exists and self.env_file_exists
+
     def load_root_data(self) -> dict[str, Any]:
-        """获取主配置文件 duel.toml 并进行简单的检测"""
+        """获取主配置文件并合并环境配置"""
         if self.root_data is None:
+            # 检查两个文件必须同时存在
+            if not self.both_files_exist:
+                missing_files = []
+                if not self.file_exists:
+                    missing_files.append(FABIK_TOML_FILE)
+                if not self.env_file_exists:
+                    missing_files.append(FABIK_ENV_FILE)
+                raise ConfigError(
+                    err_type=FileNotFoundError(),
+                    err_msg=f"Required config files not found: {', '.join(missing_files)}",
+                )
+            
+            # 加载 TOML 配置
             fabik_toml_file = self.fabik_toml.resolve().absolute() if self.fabik_toml else Path(FABIK_TOML_FILE)
             try:
                 if self.fabik_toml is None:
@@ -169,7 +201,43 @@ class FabikConfig:
                     err_type=e,
                     err_msg=f"Decode {fabik_toml_file} error: {e}",
                 )
+            
+            # 加载环境配置
+            env_data = self.load_env_data()
+            
+            # 获取项目名称（优先从环境配置获取）
+            project_name = env_data.get('NAME', self.root_data.get('NAME', 'fabik'))
+            
+            # 将不以项目名称值开头的环境变量并入 root_data
+            if env_data:
+                name_prefix = f"{project_name.upper()}_"
+                non_name_vars = {k: v for k, v in env_data.items() 
+                               if not k.startswith(name_prefix) and k != 'NAME'}
+                
+                # 合并配置：环境配置覆盖 TOML 配置中的同名键
+                self.root_data = merge_dict(self.root_data, non_name_vars)
+        
         return self.root_data
+
+    def load_env_data(self) -> dict[str, Any]:
+        """获取环境配置文件 .fabik.env 并进行简单的检测"""
+        if self.env_data is None:
+            if self.fabik_env is None:
+                raise ConfigError(
+                    err_type=FileNotFoundError(),
+                    err_msg=f"{FABIK_ENV_FILE} not found.",
+                )
+            try:
+                # 使用 dotenv_values 读取 .env 格式文件
+                raw_env_data = dotenv_values(self.fabik_env)
+                # 过滤掉 None 值
+                self.env_data = {k: v for k, v in raw_env_data.items() if v is not None}
+            except Exception as e:
+                raise ConfigError(
+                    err_type=e,
+                    err_msg=f"Load {self.fabik_env} error: {e}",
+                )
+        return self.env_data
 
     def merge_root_data(self, data: Union["FabikConfig", dict]) -> dict:
         """使用提供的数据更新 root_data 中的数据，返回的值用于覆盖当前配置文件。"""
@@ -359,19 +427,21 @@ class ConfigReplacer:
     """ 不提供 env_name，就不会读取 ENV 中的值。"""
 
     envs: dict | None = None
-    fabik_name: str
-    fabik_conf: dict
+    fabik_name: str  # 在初始化时固化
+    fabik_conf_data: dict  # 重命名的属性
+    fabik_env_data: dict   # 新增的环境数据属性
     work_dir: Path
     output_dir: Path | None = None
     tpl_dir: Path | None = None
-    deploy_dir: Path | None = None
+    deploy_dir: Path  # 不会为 None，总是有默认值
     replace_environ: list[str] | None = None
     verbose: bool = False
     writer: ConfigWriter | None = None
 
     def __init__(
         self,
-        fabik_conf: dict[str, Any],
+        fabik_conf_data: dict[str, Any],
+        fabik_env_data: dict[str, Any],  # 新增参数
         work_dir: Path,
         *,
         output_dir: Path | None = None,
@@ -380,7 +450,8 @@ class ConfigReplacer:
         verbose: bool = False,
     ):
         """初始化"""
-        self.fabik_conf = fabik_conf
+        self.fabik_conf_data = fabik_conf_data
+        self.fabik_env_data = fabik_env_data  # 新增
         self.work_dir = work_dir
 
         self.output_dir = output_dir
@@ -388,14 +459,23 @@ class ConfigReplacer:
         self.env_name = env_name
         self.verbose = verbose
 
-        self.envs = fabik_conf.get("ENV", None)
+        # 合并配置数据用于获取 ENV 等配置
+        merged_conf = merge_dict(fabik_conf_data, fabik_env_data)
+        self.envs = merged_conf.get("ENV", None)
 
         self.check_env_name()
 
         """设置替换用的 key"""
-        self.fabik_name = self.fabik_conf.get("NAME", "fabik")
+        # 固化 fabik_name：优先从环境配置获取，然后从 TOML 配置获取
+        self.fabik_name = (
+            fabik_env_data.get("NAME") or 
+            fabik_conf_data.get("NAME") or 
+            "fabik"
+        )
+        
+        # 使用合并后的配置获取 DEPLOY_DIR
         self.deploy_dir = Path(
-            self.fabik_conf.get("DEPLOY_DIR", f"/srv/app/{self.fabik_name}")
+            merged_conf.get("DEPLOY_DIR", f"/srv/app/{self.fabik_name}")
         )
         if not self.deploy_dir.is_absolute():
             raise ConfigError(
@@ -405,12 +485,33 @@ class ConfigReplacer:
         self.replace_environ = self.get_tpl_value("REPLACE_ENVIRON", merge=False)
 
     def _fill_root_meta(self, replace_obj: dict = {}):
-        """向被替换的值，填充 NAME/WORK_DIR/DEPLOY_DIR  变量。"""
+        """向被替换的值，填充 NAME/WORK_DIR/DEPLOY_DIR 变量。"""
+        # 直接使用固化的 fabik_name
         replace_obj["NAME"] = self.fabik_name
-        replace_obj["WORK_DIR"] = self.work_dir.resolve().as_posix()
-        # 增加 {DEPLOY_DIR} 的值进行替换
-        if isinstance(self.deploy_dir, Path):
-            replace_obj["DEPLOY_DIR"] = self.deploy_dir.as_posix()
+        
+        # 优先从环境配置获取 WORK_DIR，否则使用当前工作目录
+        work_dir_from_env = self.fabik_env_data.get("WORK_DIR")
+        if work_dir_from_env:
+            replace_obj["WORK_DIR"] = Path(work_dir_from_env).resolve().as_posix()
+        else:
+            replace_obj["WORK_DIR"] = self.work_dir.resolve().as_posix()
+        
+        # 优先从环境配置获取 TPL_DIR
+        tpl_dir_from_env = self.fabik_env_data.get("TPL_DIR")
+        if tpl_dir_from_env:
+            replace_obj["TPL_DIR"] = Path(tpl_dir_from_env).resolve().as_posix()
+        
+        # 处理 DEPLOY_DIR（优先从环境配置获取）
+        deploy_dir = (
+            self.fabik_env_data.get("DEPLOY_DIR") or
+            self.fabik_conf_data.get("DEPLOY_DIR") or
+            f"/srv/app/{self.fabik_name}"
+        )
+        if isinstance(deploy_dir, str):
+            deploy_dir = Path(deploy_dir)
+        if isinstance(deploy_dir, Path):
+            replace_obj["DEPLOY_DIR"] = deploy_dir.as_posix()
+        
         if self.env_name:
             replace_obj["ENV_NAME"] = self.env_name
 
@@ -452,7 +553,7 @@ class ConfigReplacer:
         :param wrap_key: 是否做一个包装。如果提供，则会将提供的值作为 key 名，在最终值之上再包装一层
         :param check_tpl_name: 检测 tpl_name 设置的值是否存在，不存在的话就报错。
         """
-        base_obj = self.fabik_conf.get(tpl_name, None)
+        base_obj = self.fabik_conf_data.get(tpl_name, None)
         update_obj = self.get_env_value(tpl_name)
 
         if check_tpl_name and base_obj is None:
@@ -620,6 +721,19 @@ def check_path_exists(p: Path) -> bool:
 
 
 # 默认验证器函数
+def config_validator_both_files_exist(config: FabikConfig) -> bool:
+    """检查两个配置文件是否都存在"""
+    if not config.both_files_exist:
+        missing_files = []
+        if not config.file_exists:
+            missing_files.append(FABIK_TOML_FILE)
+        if not config.env_file_exists:
+            missing_files.append(FABIK_ENV_FILE)
+        echo_error(f"Required config files not found: {', '.join(missing_files)}")
+        return False
+    return True
+
+
 def config_validator_name_workdir(config: FabikConfig) -> bool:
     """检查 NAME 和 work_dir 是否存在，支持嵌套 key。"""
     keys = (["NAME"], ["WORK_DIR"])

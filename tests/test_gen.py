@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import string
 import uuid
 
-from fabik.cmd import gen_token, gen_password, gen_fernet_key, gen_uuid, gen_requirements
+from fabik.cmd.gen import gen_token, gen_password, gen_fernet_key, gen_uuid, gen_requirements, UUIDType
 from fabik.util import gen as util_gen
 
 
@@ -17,9 +17,9 @@ class TestGenCommands:
     def test_gen_password(self, mocker):
         """测试 gen_password 命令"""
         # Mock echo_info 函数
-        mock_echo_info = mocker.patch('fabik.cmd.echo_info')
+        mock_echo_info = mocker.patch('fabik.cmd.gen.echo_info')
         # Mock util.gen.gen_password 函数
-        mock_gen_password = mocker.patch('fabik.cmd.util.gen.gen_password', return_value="hashed_password")
+        mock_gen_password = mocker.patch('fabik.cmd.gen.util.gen.gen_password', return_value="hashed_password")
         
         # 执行测试函数
         gen_password("test_password", "test_salt")
@@ -96,7 +96,7 @@ class TestGenCommands:
         mock_gen_uuid.reset_mock()
         
         # 测试 uuid1
-        gen_uuid('uuid1')
+        gen_uuid(UUIDType.UUID1)
         
         # 验证 util.gen.gen_uuid 被调用
         mock_gen_uuid.assert_called_once_with('uuid1')

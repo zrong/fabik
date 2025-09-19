@@ -4,25 +4,19 @@
 #
 # @author:  zrong(https://zengrong.net)
 # @source:  https://github.com/zrong/fabik.git
-# @create:  2025-07-22 15:43:45.904225
-# @version: 0.1.0
+# @create:  2025-09-19 14:07:37.306757
+# @version: 25.7.5
 # 
-#
 # Use { { } } to include variable names, which will be replaced with specific values, two curly braces should be continuous, no content should be included, such as no spaces.
 #
-# NAME: project name, defined in config file
+# NAME: project name, defined in fabik.toml or .fabik.env, if you define it in two files, the value in .fabik.env will be used.
 # WORK_DIR: absolute path of project source code folder
-# DEPLOY_DIR: absolute path of deploy folder on server
+# TPL_DIR: absolute path of template folder
 ###########################################
 
 # use NAME to define your project name.
 NAME = 'fabik'
 
-# Python executable name, default is 'python3', you can use a absolute path to specify a specific python executable.
-PYE = 'python3'
-
-# DEPLOY_DIR is the absolute path of deploy folder on server
-DEPLOY_DIR = '/srv/app/fabik'
 
 # Allow to replace environment variables.
 # The following { { } } variables will be replaced with environment variables. Two curly braces should be continuous, no content should be included, such as no spaces.
@@ -35,21 +29,12 @@ DEPLOY_DIR = '/srv/app/fabik'
 #
 # ADMIN_NAME
 # ADMIN_PASSWORD
-# SECRET_KEY
 #
 # You can add environment variables yourself, as long as the variable name in the config file is the same.
 REPLACE_ENVIRON = [
     'ADMIN_NAME',
     'ADMIN_PASSWORD',
 ]
-
-# Define all PATH related variables here.
-[PATH]
-# Define project source code folder, default is the absolute path of fabik command run folder.
-work_dir = "/Users/zrong/storage/zrong/fabik"
-
-# Define template folder, default is the absolute path of fabik command run folder + '/tpls'.
-tpl_dir = "/Users/zrong/storage/zrong/fabik/tpls"
 
 
 # 用于 deploy 上传时排除本地文件

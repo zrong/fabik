@@ -179,8 +179,13 @@ class Deploy:
         self.verbose = verbose
 
         self.pye = fabik_conf["PYE"]
+        # 传递空的环境数据，因为 Deploy 类目前不支持环境配置
         self.replacer = ConfigReplacer(
-            fabik_conf, self.work_dir, env_name=env_name, verbose=self.verbose
+            fabik_conf,   # fabik_conf_data
+            {},           # fabik_env_data (空的环境数据)
+            self.work_dir, 
+            env_name=env_name, 
+            verbose=self.verbose
         )
         self.replacer.check_env_name()
 

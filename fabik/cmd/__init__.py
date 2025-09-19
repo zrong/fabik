@@ -31,6 +31,7 @@ from fabik.conf import (
     ConfigReplacer,
     FabikConfig,
     config_validator_name_workdir,
+    config_validator_both_files_exist,  # 新增的验证器
     config_validator_tpldir,
 )
 from fabric.connection import Connection
@@ -213,9 +214,13 @@ class GlobalState:
                 )
             
             # 创建 ConfigReplacer，根据情况使用 output_dir
+            # 获取环境数据
+            env_data = self.fabik_config.env_data or {} if self.fabik_config else {}
+            
             replacer = ConfigReplacer(
-                self.conf_data,
-                self.cwd,  # type: ignore
+                self.conf_data,      # fabik_conf_data
+                env_data,            # fabik_env_data (新增参数)
+                self.cwd,
                 output_dir=output_dir,
                 tpl_dir=tpl_dir,
                 env_name=self.env,
@@ -354,9 +359,16 @@ class GlobalState:
                 self.load_conf_data(check=True)
 
             # 使用已加载的配置
+            # 获取环境数据
+            env_data = self.fabik_config.env_data or {} if self.fabik_config else {}
+            
             replacer = ConfigReplacer(
-                self.conf_data, self.cwd, env_name=self.env, verbose=self.verbose
-            )  # type: ignore
+                self.conf_data,      # fabik_conf_data
+                env_data,            # fabik_env_data (新增参数)
+                self.cwd, 
+                env_name=self.env, 
+                verbose=self.verbose
+            )
             # 从 fabik.toml 配置中获取服务器地址
             fabric_conf = replacer.get_tpl_value("FABRIC", merge=True)
             pye_conf = replacer.get_tpl_value("PYE", merge=True)
@@ -440,3 +452,4 @@ NoteOutputFile = Annotated[
 # 创建全局状态实例并注册默认验证器
 global_state = GlobalState()
 global_state.register_config_validator(config_validator_name_workdir)
+global_state.register_config_validator(config_validator_both_files_exist)  # 新增的验证器
