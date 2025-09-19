@@ -17,6 +17,7 @@ import tomllib
 import tomli_w
 import json
 import typer
+from dotenv import dotenv_values
 
 import fabik
 from fabik.error import (
@@ -469,6 +470,26 @@ class ConfigReplacer:
 
         return {wrap_key: repl_obj} if wrap_key else repl_obj
 
+    def get_environ(self) -> dict[str, str]:
+        """从系统环境变量和 .env 文件中获取预设变量的值。
+        
+        .env 文件中的变量会覆盖环境变量中的同名值。
+        返回合并后的环境变量字典。
+        """
+        # 从系统环境变量开始
+        env_values = dict(os.environ)
+        
+        # 查找 .env 文件
+        env_file = self.work_dir / ".env"
+        if env_file.exists():
+            # 从 .env 文件读取变量，这些变量会覆盖系统环境变量
+            dotenv_vars = dotenv_values(env_file)
+            # 过滤掉值为 None 的项（dotenv_values 可能返回 None 值）
+            dotenv_vars = {k: v for k, v in dotenv_vars.items() if v is not None}
+            env_values.update(dotenv_vars)
+        
+        return env_values
+
     def replace(self, value: str) -> str:
         """替换 value 中的占位符"""
         # 环境变量替换用
@@ -477,6 +498,7 @@ class ConfigReplacer:
         replace_obj = self._fill_root_meta()
         # 获取环境变量中的替换值
         if self.replace_environ is not None:
+            env_values = self.get_environ()
             for n in self.replace_environ:
                 # FABIK_LOCAL_NAME
                 environ_key = (
@@ -485,7 +507,7 @@ class ConfigReplacer:
                     else f"{self.fabik_name.upper()}_{n}"
                 )
                 environ_keys[n] = environ_key
-                environ_value = os.environ.get(environ_key)
+                environ_value = env_values.get(environ_key)
                 if environ_value is not None:
                     replace_obj[n] = environ_value
         try:

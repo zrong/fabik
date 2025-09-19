@@ -20,7 +20,7 @@ fabik.toml 的模板：
 
 完整的 fabik.toml 配置文件保存在 `samples/fabik.toml` 中，欢迎查看。
 
-.. _fabik_toml_substitution:
+.. _fabik_substitution:
 
 替换机制
 --------------
@@ -44,6 +44,84 @@ fabik 有两个主要的替换机制。
 为了安全，我们会把敏感的信息写入系统的环境变量中。fabik 可以从环境变量中提取之，在生成配置文件时进行替换。
 
 请阅读 :ref:`fabik_toml_root` 中关于 ``REPLACE_ENVIRON`` 的介绍。
+
+替换流程
+^^^^^^^^^^^^^^^^^^^
+
+..  使用此插件渲染： https://github.com/mgaitan/sphinxcontrib-mermaid
+
+.. mermaid::
+   
+    graph TB
+        A[开始: 调用 set_writer] --> B[调用 get_replace_obj]
+        
+        B --> C[get_tpl_value: 获取模板配置]
+        C --> C1[从 fabik_conf 获取 base_obj]
+        C --> C2[从 ENV 配置获取 update_obj]
+        C1 --> C3[merge_dict: 合并配置]
+        C2 --> C3
+        C3 --> D[tomli_w.dumps: 转换为 TOML 字符串]
+        
+        D --> E[调用 replace 进行替换]
+        
+        E --> F[_fill_root_meta: 填充根元数据]
+        F --> F1[NAME: fabik_name]
+        F --> F2[WORK_DIR: work_dir 路径]
+        F --> F3[DEPLOY_DIR: deploy_dir 路径]
+        F --> F4[ENV_NAME: env_name]
+        
+        E --> G{是否有 replace_environ?}
+        G -->|是| H[调用 get_environ]
+        G -->|否| L[跳过环境变量处理]
+        
+        H --> H1[获取系统环境变量: os.environ]
+        H --> H2{.env 文件是否存在?}
+        H2 -->|是| H3[dotenv_values: 读取 .env]
+        H2 -->|否| H4[只使用系统环境变量]
+        H3 --> H5[合并: .env 覆盖系统变量]
+        H4 --> H6[返回环境变量字典]
+        H5 --> H6
+        
+        H6 --> I[遍历 replace_environ 列表]
+        I --> I1[构造环境变量键名]
+        I1 --> I2[格式: FABIK_ENV_VAR 或 FABIK_VAR]
+        I2 --> I3[从环境变量字典获取值]
+        I3 --> I4{值是否存在?}
+        I4 -->|是| I5[添加到 replace_obj]
+        I4 -->|否| I6[跳过该变量]
+        I5 --> I7{还有更多变量?}
+        I6 --> I7
+        I7 -->|是| I1
+        I7 -->|否| J[所有环境变量处理完成]
+        
+        L --> J
+        J --> K[jinja2.Template.render]
+        K --> K1[使用 replace_obj 渲染模板]
+        K1 --> M[返回替换后的字符串]
+        
+        M --> N[tomllib.loads: 转换回对象]
+        N --> O[再次调用 _fill_root_meta]
+        O --> P[返回最终的 replace_obj]
+        
+        P --> Q[创建 Writer 实例]
+        Q --> Q1{tpl_dir 是否存在?}
+        Q1 -->|是| Q2[TplWriter: 模板文件写入]
+        Q1 -->|否| Q3[ConfigWriter: 直接配置写入]
+        
+        Q2 --> R1[jinja2 模板渲染]
+        Q3 --> R2[TOML/JSON/KEY=VALUE 格式写入]
+        
+        R1 --> S[写入目标文件]
+        R2 --> S
+        S --> T[完成]
+        
+        style A fill:#e1f5fe
+        style B fill:#fff3e0
+        style E fill:#f3e5f5
+        style H fill:#e8f5e8
+        style K fill:#fff8e1
+        style S fill:#fce4ec
+        style T fill:#e0f2f1
 
 
 .. _multi_env:
@@ -128,15 +206,14 @@ REPLACE_ENVIRON
     例如：
 
     1. 项目 NAME 为 ``fabik``，作为环境变量替换时，会被转换为全大写 ``FABIK``。
-    2. 环境变量中包含 ``FABIK_LOCAL_SECRET_KEY``。
-    3. 使用 ``--env local`` 生成配置文件时，将替换 ``{{SECRET_KEY}}`` 的值为环境变量中的 ``FABIK_LOCAL_SECRET_KEY``。
+    2. 环境变量中包含 ``FABIK_LOCAL_ADMIN_PASSWORD``，则替换为 ``{{ADMIN_PASSWORD}}``。
+    3. 使用 ``--env local`` 生成配置文件时，将替换 ``{{ADMIN_PASSWORD}}`` 的值为环境变量中的 ``FABIK_LOCAL_ADMIN_PASSWORD}``。
 
-    默认提供了四个环境变量替换：
+    默认生成的模板中，提供了下面三个环境变量替换：
 
     - ``{{ADMIN_NAME}}`` 管理员帐号
     - ``{{ADMIN_PASSWORD}}`` 管理员密码
-    - ``{{SECRET_KEY}}`` flask 框架加密使用
-    - ``{{SQLALCHEMY_URI}}`` 数据库地址和密码定义
+    - ``{{TOKEN}}`` 加密使用
     
     亦可自行增加环境变量，保证配置文件中的变量名称相同即可。
 
