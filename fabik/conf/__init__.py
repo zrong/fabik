@@ -12,6 +12,8 @@ __all__ = [
     "config_validator_name_workdir",
     "FabikConfig",
     "FabikConfigFile",
+    'FABIK_DATA',
+    'FABIK_ENV',
     "ConfigWriter",
     "ConfigReplacer",
 ]
@@ -65,6 +67,8 @@ def merge_dict(x: dict, y: dict, z: dict | None = None) -> dict:
 from .storage import (
     FabikConfig,
     FabikConfigFile,
+    FABIK_DATA,
+    FABIK_ENV,
     config_validator_tpldir,
     config_validator_name_workdir,
 )

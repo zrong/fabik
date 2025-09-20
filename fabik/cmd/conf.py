@@ -41,7 +41,7 @@ def conf_tpl(
     # 需要检查 tpl_dir 是否存在
     global_state.register_config_validator(config_validator_tpldir)
     global_state.load_conf_data(check=True)
-    tpl_dir = Path(global_state.fabik_config.getcfg("TPL_DIR"))  # type: ignore
+    tpl_dir = Path(global_state.fabik_config.TPL_DIR)  # type: ignore
     tpl_names: list[str] = []
     for n in file:
         # 模板名称统一不带 jinja2 后缀，模板文件必须带有 jinja2 后缀。
@@ -56,7 +56,7 @@ def conf_tpl(
         global_state.write_config_file(
             tpl_name,
             tpl_dir=tpl_dir,
-            target_postfix=f".{global_state.env}" if global_state.env_postfix else "",
+            target_postfix=f".{global_state.fabik_config.env_name}" if global_state.env_postfix else "",  # pyright: ignore[reportOptionalMemberAccess]
         )
 
 
@@ -71,5 +71,5 @@ def conf_make(
     global_state.load_conf_data(check=True)
     for f in file:
         global_state.write_config_file(
-            f, target_postfix=f".{global_state.env}" if global_state.env_postfix else ""
+            f, target_postfix=f".{global_state.fabik_config.env_name}" if global_state.env_postfix else ""  # pyright: ignore[reportOptionalMemberAccess]
         )

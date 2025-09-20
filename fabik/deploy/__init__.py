@@ -17,7 +17,7 @@ from invoke import runners
 from fabric.connection import Connection
 from invoke.exceptions import Exit
 
-from fabik.conf import ConfigReplacer
+from fabik.conf import ConfigReplacer, FabikConfig
 
 logger = logging.Logger("fabric", level=logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -154,10 +154,9 @@ def rsync(
 
 
 class Deploy:
-    fabik_conf: dict
+    fabik_conf: FabikConfig
     work_dir: Path
     conn: Connection
-    env_name: str | None = None
     verbose: bool = False
 
     pye: str
@@ -165,29 +164,26 @@ class Deploy:
 
     def __init__(
         self,
-        fabik_conf: dict,
+        fabik_conf: FabikConfig,
         work_dir: Path,
         conn: Connection,
-        env_name: str | None = None,
         verbose: bool = False,
     ):
         """初始化"""
         self.fabik_conf = fabik_conf
         self.work_dir = Path(work_dir)
         self.conn = conn
-        self.env_name = env_name
         self.verbose = verbose
 
-        self.pye = fabik_conf["PYE"]
+        self.pye = fabik_conf.getcfg('PYE')
+        
+        fabik_conf.check_env_name()
         # 传递空的环境数据，因为 Deploy 类目前不支持环境配置
         self.replacer = ConfigReplacer(
             fabik_conf,   # fabik_conf_data
-            {},           # fabik_env_data (空的环境数据)
             self.work_dir, 
-            env_name=env_name, 
             verbose=self.verbose
         )
-        self.replacer.check_env_name()
 
     def check_remote_conn(self):
         """确保当前提供的 conn 是远程版本"""
@@ -363,7 +359,7 @@ class Deploy:
         if force or not tpltarget_remote_exists:
             # 创建一个临时文件用于上传，使用后缀
             _, final_file = self.replacer.set_writer(
-                tpl_name, force=force, target_postfix=f".{self.env_name}"
+                tpl_name, force=force, target_postfix=f".{self.fabik_conf.env_name}"
             )
             self.conn.put(final_file, target_remote)
             logger.warning("覆盖远程配置文件 %s", target_remote)
@@ -420,7 +416,7 @@ class Deploy:
             local_file = self.work_dir.joinpath(
                 "logs",
                 "{name}_{basename}_{times}{extname}".format(
-                    name=self.env_name,
+                    name=self.fabik_conf.env_name,
                     times=time_string,
                     basename=logp.name,
                     extname=logp.suffix,

@@ -56,14 +56,12 @@ class DeployClassName(StrEnum):
 
 
 class GlobalState:
-    cwd: Path
-    """ 当前工作目录。"""
 
     fabik_file: FabikConfigFile
     """ fabik 配置文件对象。"""
 
-    env: str | None = None
-    """ env 环境，默认为空，不指定环境时，会使用 WORK_DIR 中的默认环境。"""
+    fabik_config: FabikConfig | None = None
+    """ fabik 配置文件解析之后的值。"""
 
     force: bool = False
     """ 强制覆盖存在的文件。 """
@@ -76,19 +74,20 @@ class GlobalState:
 
     verbose: bool = False
     """ 启用详细日志。 """
+    
+    env_name: str = ""
+    """ 命令行传递来的 env 的值。 """
 
     output_dir: Path | None = None
     output_file: Path | None = None
-    fabik_config: FabikConfig | None = None
     _config_validators: list[Callable] = []  # 存储自定义验证器函数
 
     deploy_conn: "Deploy" = None  # type: ignore # noqa: F821
     
     @property
-    def conf_data(self) -> dict[str, Any]:
-        if self.fabik_config is None:
-            return {}
-        return self.fabik_config.root_data or {}
+    def cwd(self) -> Path:
+        """ 当前工作目录。"""
+        return self.fabik_file.getdir()
 
     def register_config_validator(self, validator_func: Callable) -> None:
         """注册一个配置验证函数，用于验证配置数据。
@@ -120,9 +119,8 @@ class GlobalState:
     def use_work_dir_or_cwd(self) -> Path:
         """如果提供了配置文件，检测 work_dir 并返回。否则使用 cwd 作为 work_dir。"""
         try:
-
             self.load_conf_data(False)
-            work_dir_str = self.fabik_config.getcfg("WORK_DIR") if self.fabik_config else None
+            work_dir_str = self.fabik_config.WORK_DIR  # pyright: ignore[reportOptionalMemberAccess]
             work_dir = Path(work_dir_str) if work_dir_str is not None else self.cwd
             if not work_dir.is_absolute():
                 echo_warning(f"{work_dir} is not a absolute path.")
@@ -139,21 +137,29 @@ class GlobalState:
         if not output.is_absolute():
             work_dir = self.use_work_dir_or_cwd()
             output = work_dir / output
-            
+
         if is_file:
             if output.is_dir():
-                raise typer.BadParameter(f"{output.absolute().as_posix()} 必须是一个文件。")
+                raise typer.BadParameter(
+                    f"{output.absolute().as_posix()} 必须是一个文件。"
+                )
 
             # 检查父目录是否存在且可写
             parent_dir = output.parent
             if not parent_dir.exists():
-                raise typer.BadParameter(f"目录 {parent_dir.absolute().as_posix()} 不存在。")
+                raise typer.BadParameter(
+                    f"目录 {parent_dir.absolute().as_posix()} 不存在。"
+                )
 
             if not parent_dir.is_dir():
-                raise typer.BadParameter(f"{parent_dir.absolute().as_posix()} 不是一个文件夹。")
+                raise typer.BadParameter(
+                    f"{parent_dir.absolute().as_posix()} 不是一个文件夹。"
+                )
         else:
             if not output.is_dir():
-                raise typer.BadParameter(f"{output.absolute().as_posix()} 必须是一个文件夹。")
+                raise typer.BadParameter(
+                    f"{output.absolute().as_posix()} 必须是一个文件夹。"
+                )
             if not output.exists():
                 raise typer.BadParameter(f"{output.absolute().as_posix()} 不存在。")
 
@@ -163,12 +169,11 @@ class GlobalState:
         self,
         check: bool = False,
         file_not_found_err_msg: str = 'Please call "fabik init" to generate a "fabik.toml" file.',
-    ) -> dict[str, Any]:
+    ):
         try:
-            self.fabik_config = self.fabik_file.load_config()
+            self.fabik_config = self.fabik_file.load_config(self.env_name)
             if check:
                 self._check_conf_data()
-            return self.conf_data
         except PathError as e:
             if isinstance(e.err_type, FileNotFoundError):
                 echo_error(file_not_found_err_msg)
@@ -199,37 +204,32 @@ class GlobalState:
         try:
             # 处理参数优先级和路径验证
             output_dir, output_file = self._resolve_output_parameters()
-            
+
             if self.verbose:
                 echo_info(
-                    f"""{self.conf_data=}
-                {self.cwd=!s}
+                    f"""{self.fabik_config=}
+                {self.fabik_file=!s}
                 {output_dir=!s}
                 {output_file=!s}
-                {self.env=!s}
                 {tpl_name=!s}
                 {tpl_dir=!s}""",
                     panel_title="GlobalState::write_config_file()",
                 )
-            
-            # 创建 ConfigReplacer，根据情况使用 output_dir
-            # 获取环境数据
-            env_data = self.fabik_config.env_data or {} if self.fabik_config else {}
-            
+
             replacer = ConfigReplacer(
-                self.conf_data,      # fabik_conf_data
-                env_data,            # fabik_env_data (新增参数)
+                self.fabik_config,  # pyright: ignore[reportArgumentType]
                 self.cwd,
                 output_dir=output_dir,
                 tpl_dir=tpl_dir,
-                env_name=self.env,
                 verbose=self.verbose,
             )
-            
+
             # 调用统一的 set_writer 方法，根据情况传递 output_file
             if output_file is not None:
                 # 处理 output_file 的路径解析
-                resolved_output_file = self._resolve_output_file_target(output_file, target_postfix)
+                resolved_output_file = self._resolve_output_file_target(
+                    output_file, target_postfix
+                )
                 target, final_target = replacer.set_writer(
                     tpl_name,
                     force=self.force,
@@ -253,10 +253,10 @@ class GlobalState:
         except Exception as e:
             echo_error(str(e))
             raise typer.Abort()
-    
+
     def _resolve_output_parameters(self) -> tuple[Path | None, Path | None]:
         """解析输出参数的优先级和路径验证
-        
+
         :return: (resolved_output_dir, resolved_output_file)
         """
         # 处理参数优先级：--output-file 优先于 --output-dir
@@ -264,8 +264,10 @@ class GlobalState:
             # 使用 --output-file 参数
             if self.output_dir is not None:
                 # 显示警告：同时提供了两个参数
-                echo_warning("Both --output-file and --output-dir provided. --output-dir will be ignored.")
-            
+                echo_warning(
+                    "Both --output-file and --output-dir provided. --output-dir will be ignored."
+                )
+
             return None, self.output_file
         elif self.output_dir is not None:
             # 使用 --output-dir 参数，需要验证路径
@@ -277,10 +279,12 @@ class GlobalState:
         else:
             # 都未提供，使用默认
             return None, None
-    
-    def _resolve_output_file_target(self, output_file: Path, target_postfix: str) -> Path:
+
+    def _resolve_output_file_target(
+        self, output_file: Path, target_postfix: str
+    ) -> Path:
         """解析输出文件的目标路径
-        
+
         :param output_file: 输出文件路径
         :param target_postfix: 配置文件的后缀
         :return: 解析后的输出文件路径
@@ -289,17 +293,17 @@ class GlobalState:
             resolved_output_file = self.check_output(output_file, is_file=True)
         else:
             resolved_output_file = output_file
-        
+
         if self.env_postfix and self.env:
             resolved_output_file = resolved_output_file.with_name(
                 resolved_output_file.stem + f"-{self.env}" + resolved_output_file.suffix
             )
-        
+
         if target_postfix:
             resolved_output_file = resolved_output_file.with_name(
                 resolved_output_file.stem + target_postfix + resolved_output_file.suffix
             )
-        
+
         return resolved_output_file
 
     def copy_tpl_file(self, keyname: str, filename: str, rename: bool = False):
@@ -357,16 +361,10 @@ class GlobalState:
             if self.fabik_config is None:
                 self.load_conf_data(check=True)
 
-            # 使用已加载的配置
-            # 获取环境数据
-            env_data = self.fabik_config.env_data or {} if self.fabik_config else {}
-            
             replacer = ConfigReplacer(
-                self.conf_data,      # fabik_conf_data
-                env_data,            # fabik_env_data (新增参数)
-                self.cwd, 
-                env_name=self.env, 
-                verbose=self.verbose
+                self.fabik_config,  # pyright: ignore[reportArgumentType]
+                self.cwd,
+                verbose=self.verbose,
             )
             # 从 fabik.toml 配置中获取服务器地址
             fabric_conf = replacer.get_tpl_value("FABRIC", merge=True)
@@ -390,10 +388,9 @@ class GlobalState:
                 )
 
             d = deploy_class(
-                self.conf_data,
+                self.fabik_config,
                 self.cwd,
                 Connection(**fabric_conf),
-                self.env,
                 self.verbose,
             )
             self.deploy_conn = d
@@ -407,11 +404,10 @@ class GlobalState:
 
     def __repr__(self) -> str:
         return f"""{self.__class__.__name__}(
-    env={self.env}, 
     cwd={self.cwd!s}, 
     conf_file={self.fabik_file!s}, 
-    force={self.force}, 
-    fabik_config={self.fabik_config!s}
+    fabik_config={self.fabik_config!s},
+    force={self.force}
 )"""
 
 

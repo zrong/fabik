@@ -6,6 +6,7 @@ fabik.conf.storage
 fabik 配置文件读取和存储。
 """
 
+import os
 from pathlib import Path
 import tomllib
 from typing import Any, Union
@@ -14,33 +15,123 @@ import typer
 from dotenv import dotenv_values
 
 import fabik
-from fabik.error import ConfigError, PathError, echo_error
+from fabik.error import ConfigError, PathError, EnvError, echo_error
 from fabik.tpl import FABIK_ENV_FILE, FABIK_TOML_FILE
 from fabik.conf import merge_dict
 
 
 FABIK_DATA: str = "root_data"
+FABIK_ENV: str = "env_data"
 
 
 class FabikConfig:
     """处理 FABIK 配置的值。"""
 
-    root_data: dict[str, Any] | None = None
+    __project_name: str
+    """ 项目名称。"""
+
+    root_data: dict[str, Any]
     """ 保存 FABIK_TOML_FILE 中载入的配置。"""
 
-    env_data: dict[str, Any] | None = None
-    """ 存储 FABIK_ENV_FILE 文件中的配置。"""
+    env_data: dict[str, Any]
+    """ 存储 FABIK_ENV_FILE 文件中载入的配置。"""
+    
+    env_name: str = ""
+    """ 存储命令行传递的 env 参数。"""
+    
+    envs: dict[str, dict[str, Any]]| None = None
+    
 
     def __init__(
         self,
         root_data: dict | None = None,
         env_data: dict | None = None,
+        env_name: str  = ""
     ):
         """接受配置文件的 值
         :param cfg: 配置文件路径
         """
         self.root_data = root_data or {}
         self.env_data = env_data or {}
+        self.env_name = env_name
+        
+        self._update_root_env_data()
+        self.envs = self.root_data.get('ENV', None)
+        
+    @property
+    def NAME(self) -> str:
+        """ 配置中的 NAME"""
+        return self.__project_name
+
+    @property
+    def WORK_DIR(self) -> str | None:
+        """ 配置中的 WORK_DIR"""
+        return self._get_path_str('WORK_DIR')
+
+    @property
+    def TPL_DIR(self) -> str | None:
+        """ 配置中的 TPL_DIR"""
+        return self._get_path_str('TPL_DIR')
+    
+    def _update_root_env_data(self):
+        """ 将环境配置的 NO_NAME_VAR 值合并到 root_data 中，
+        将环境配置的值覆盖同名，环境变量的值覆盖配置的值，保存到 env_data 中。
+        NO_NAME_VAR: 不以项目名称值开头的环境变量。
+        """
+        # 获取项目名称（优先从环境配置获取）
+        self.__project_name = self.env_data.get("NAME", self.root_data.get("NAME", fabik.__name__))
+        
+        # 将NO_NAME_VAR 并入 root_data
+        name_prefix = f"{self.__project_name.upper()}_"
+        non_name_vars = {
+            k: v for k, v in self.env_data.items() if not k.startswith(name_prefix)
+        }
+
+        # 合并配置：环境配置覆盖 TOML 配置中的同名键，仅限 NO_NAME_VAR
+        self.root_data = merge_dict(self.root_data, non_name_vars)
+
+        # 获取系统环境变量，仅处理以项目名称开头的环境变量
+        fabik_env_var_in_os_environ = {
+            k: v for k, v in dict(os.environ).items() if k.startswith(name_prefix)
+        }
+        # 合并配置：  以 env_data 中的值作为基础，env_data 中的值覆盖系统环境变量中的同名值
+        self.env_data = merge_dict(fabik_env_var_in_os_environ, self.env_data)
+
+    def _get_path_str(self, var_name: str) -> str | None:
+        """ 获取配置中的路径变量的绝对路径字符串形式 """
+        # 存入 root_data 中的 NO_NAME_VAR 已经合并过 env_data 中的同名变量了。
+        # 因此仅从 root_data 中获取即可
+        p = self.root_data.get(var_name)
+        if p:
+            return Path(p).resolve().as_posix()
+        return None
+
+    def get_env_var_name(self, var_name: str) -> str:
+        """ 获取 ENV 变量的名称。"""
+        env_prefix: str = self.env_name if self.env_name else ""
+        return f"{self.NAME.upper()}_{env_prefix.upper()}_{var_name}"
+
+    def check_env_name(self):
+        """仅在 env_name 有效时，才会检查 envs 的值。"""
+        if self.env_name:
+            if not self.envs or not isinstance(self.envs, dict):
+                raise EnvError(err_type=TypeError(), err_msg="envs must be a dict.")
+            if self.env_name not in self.envs:
+                raise EnvError(
+                    err_type=KeyError(),
+                    err_msg=f"env_name {self.env_name} not found in envs.",
+                )
+
+    def get_env_value(self, key: str | None = None, default_value: Any = None) -> Any:
+        """获取环境变量中的值。"""
+        if self.env_name is None or self.envs is None:
+            return default_value
+        env_obj = self.envs.get(self.env_name, None)
+        if env_obj is None:
+            return default_value
+        if key is None:
+            return env_obj
+        return env_obj.get(key, default_value)
 
     def getcfg(
         self, *args, default_value: Any = None, data: str | dict = FABIK_DATA
@@ -54,6 +145,8 @@ class FabikConfig:
         """
         if data == FABIK_DATA:
             data = self.root_data or {}
+        elif data == FABIK_ENV:
+            data = self.env_data or {}
         if args and isinstance(data, dict):
             cur_data = data.get(args[0], default_value)
             return self.getcfg(*args[1:], default_value=default_value, data=cur_data)
@@ -68,6 +161,8 @@ class FabikConfig:
         """
         if data == FABIK_DATA:
             data = self.root_data or {}
+        elif data == FABIK_ENV:
+            data = self.env_data or {}
         if args and isinstance(data, dict):
             arg0 = args[0]
             if len(args) > 1:
@@ -78,6 +173,14 @@ class FabikConfig:
                 self.setcfg(*args[1:], value=value, data=cur_data)
             else:
                 data[arg0] = value
+
+    def __repr__(self) -> str:
+        return f"""{self.__class__.__name__}
+        ({self.__project_name=!s}, 
+        {self.env_name=!s},
+        {self.envs=!s},
+        {self.root_data=!s}, 
+        {self.env_data=!s})"""
 
 
 class FabikConfigFile:
@@ -143,7 +246,7 @@ class FabikConfigFile:
         """返回配置文件 FABIK_TOML 是否存在。"""
         return self.fabik_toml.exists() and self.fabik_env.exists()
 
-    def load_config(self) -> FabikConfig:
+    def load_config(self, env_name: str="") -> FabikConfig:
         """获取主配置文件并合并环境配置"""
         # 检查两个文件必须同时存在
         if not self.file_exists:
@@ -181,7 +284,7 @@ class FabikConfigFile:
         # 获取项目名称（优先从环境配置获取）
         project_name = env_data.get("NAME", root_data.get("NAME", fabik.__name__))
 
-        # 将不以项目名称值开头的环境变量并入 root_data
+        # 将不以项目名称值开头的环境变量 (NO_NAME_VAR) 并入 root_data
         name_prefix = f"{project_name.upper()}_"  # pyright: ignore[reportOptionalMemberAccess]
         non_name_vars = {
             k: v for k, v in env_data.items() if not k.startswith(name_prefix)
@@ -189,7 +292,7 @@ class FabikConfigFile:
 
         # 合并配置：环境配置覆盖 TOML 配置中的同名键
         root_data = merge_dict(root_data, non_name_vars)
-        return FabikConfig(root_data, env_data)
+        return FabikConfig(root_data, env_data, env_name)
 
     def getdir(self, *args, work_dir: Path | None = None) -> Path:
         """基于当前项目的运行文件夹，返回一个 pathlib.Path 对象
@@ -206,9 +309,9 @@ class FabikConfigFile:
 
     def __repr__(self) -> str:
         return f"""{self.__class__.__name__}
-        (work_dir={self.__work_dir!s}, 
-        fabik_toml={self.fabik_toml!s}, 
-        fabik_env={self.fabik_env!s})"""
+        ({self.__work_dir=!s}, 
+        {self.fabik_toml=!s}, 
+        {self.fabik_env=!s})"""
 
 
 def check_none(value: Any, key_list: list[str]) -> Any:

@@ -1,12 +1,11 @@
-"""  .._fabik_conf_processor:
+""".._fabik_conf_processor:
 
 fabik.conf.processor
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-    
+
 fabik command line interface implementation
 """
 
-import os
 import jinja2
 from pathlib import Path
 from typing import Any
@@ -15,11 +14,10 @@ import shutil
 import tomllib
 import tomli_w
 import json
-from dotenv import dotenv_values
 
 import fabik
+from fabik.conf import FABIK_ENV, FabikConfig
 from fabik.error import (
-    EnvError,
     echo_error,
     echo_info,
     echo_warning,
@@ -150,10 +148,8 @@ class ConfigReplacer:
     env_name: str | None = None
     """ 不提供 env_name，就不会读取 ENV 中的值。"""
 
-    envs: dict | None = None
-    fabik_name: str  # 在初始化时固化
-    fabik_conf_data: dict  # 重命名的属性
-    fabik_env_data: dict   # 新增的环境数据属性
+    fabik_config: FabikConfig
+
     work_dir: Path
     output_dir: Path | None = None
     tpl_dir: Path | None = None
@@ -164,43 +160,24 @@ class ConfigReplacer:
 
     def __init__(
         self,
-        fabik_conf_data: dict[str, Any],
-        fabik_env_data: dict[str, Any],  # 新增参数
+        fabik_config: FabikConfig,
         work_dir: Path,
         *,
         output_dir: Path | None = None,
         tpl_dir: Path | None = None,
-        env_name: str | None = None,
         verbose: bool = False,
     ):
         """初始化"""
-        self.fabik_conf_data = fabik_conf_data
-        self.fabik_env_data = fabik_env_data  # 新增
+        self.fabik_config = fabik_config
         self.work_dir = work_dir
 
         self.output_dir = output_dir
         self.tpl_dir = tpl_dir
-        self.env_name = env_name
         self.verbose = verbose
 
-        # 合并配置数据用于获取 ENV 等配置
-        merged_conf = merge_dict(fabik_conf_data, fabik_env_data)
-        self.envs = merged_conf.get("ENV", None)
+        self.fabik_config.check_env_name()
 
-        self.check_env_name()
-
-        """设置替换用的 key"""
-        # 固化 fabik_name：优先从环境配置获取，然后从 TOML 配置获取
-        self.fabik_name = (
-            fabik_env_data.get("NAME") or 
-            fabik_conf_data.get("NAME") or 
-            "fabik"
-        )
-        
-        # 使用合并后的配置获取 DEPLOY_DIR
-        self.deploy_dir = Path(
-            merged_conf.get("DEPLOY_DIR", f"/srv/app/{self.fabik_name}")
-        )
+        self.deploy_dir = Path(self._get_deploy_dir())
         if not self.deploy_dir.is_absolute():
             raise ConfigError(
                 err_type=ValueError(),
@@ -208,60 +185,35 @@ class ConfigReplacer:
             )
         self.replace_environ = self.get_tpl_value("REPLACE_ENVIRON", merge=False)
 
+    def _get_deploy_dir(self):
+        """获取 DEPLOY_DIR 的 字符串形态"""
+        # 处理 DEPLOY_DIR（优先从环境配置获取）
+        return self.fabik_config.getcfg(
+            "DEPLOY_DIR", f"/srv/app/{self.fabik_config.NAME}"
+        )
+
     def _fill_root_meta(self, replace_obj: dict = {}):
         """向被替换的值，填充 NAME/WORK_DIR/DEPLOY_DIR 变量。"""
         # 直接使用固化的 fabik_name
-        replace_obj["NAME"] = self.fabik_name
-        
+        replace_obj["NAME"] = self.fabik_config.NAME
+
         # 优先从环境配置获取 WORK_DIR，否则使用当前工作目录
-        work_dir_from_env = self.fabik_env_data.get("WORK_DIR")
+        work_dir_from_env = self.fabik_config.WORK_DIR
         if work_dir_from_env:
             replace_obj["WORK_DIR"] = Path(work_dir_from_env).resolve().as_posix()
         else:
             replace_obj["WORK_DIR"] = self.work_dir.resolve().as_posix()
-        
+
         # 优先从环境配置获取 TPL_DIR
-        tpl_dir_from_env = self.fabik_env_data.get("TPL_DIR")
+        tpl_dir_from_env = self.fabik_config.TPL_DIR
         if tpl_dir_from_env:
             replace_obj["TPL_DIR"] = Path(tpl_dir_from_env).resolve().as_posix()
-        
-        # 处理 DEPLOY_DIR（优先从环境配置获取）
-        deploy_dir = (
-            self.fabik_env_data.get("DEPLOY_DIR") or
-            self.fabik_conf_data.get("DEPLOY_DIR") or
-            f"/srv/app/{self.fabik_name}"
-        )
-        if isinstance(deploy_dir, str):
-            deploy_dir = Path(deploy_dir)
-        if isinstance(deploy_dir, Path):
-            replace_obj["DEPLOY_DIR"] = deploy_dir.as_posix()
-        
+
+        replace_obj["DEPLOY_DIR"] = Path(self._get_deploy_dir()).as_posix()
         if self.env_name:
-            replace_obj["ENV_NAME"] = self.env_name
+            replace_obj["ENV_NAME"] = self.fabik_config.env_name
 
         return replace_obj
-
-    def check_env_name(self):
-        """仅在 env_name 有效时，才会检查 envs 的值。"""
-        if self.env_name:
-            if not self.envs or not isinstance(self.envs, dict):
-                raise EnvError(err_type=TypeError(), err_msg="envs must be a dict.")
-            if self.env_name not in self.envs:
-                raise EnvError(
-                    err_type=KeyError(),
-                    err_msg=f"env_name {self.env_name} not found in envs.",
-                )
-
-    def get_env_value(self, key: str | None = None, default_value: Any = None) -> Any:
-        """获取环境变量中的值。"""
-        if self.env_name is None or self.envs is None:
-            return default_value
-        env_obj = self.envs.get(self.env_name, None)
-        if env_obj is None:
-            return default_value
-        if key is None:
-            return env_obj
-        return env_obj.get(key, default_value)
 
     def get_tpl_value(
         self,
@@ -277,12 +229,17 @@ class ConfigReplacer:
         :param wrap_key: 是否做一个包装。如果提供，则会将提供的值作为 key 名，在最终值之上再包装一层
         :param check_tpl_name: 检测 tpl_name 设置的值是否存在，不存在的话就报错。
         """
-        base_obj = self.fabik_conf_data.get(tpl_name, None)
-        update_obj = self.get_env_value(tpl_name)
+        base_obj = self.fabik_config.getcfg(tpl_name)
+        update_obj = self.fabik_config.get_env_value(tpl_name)
 
         if check_tpl_name and base_obj is None:
+            if self.verbose:
+                echo_error(
+                    f"{merge=} {wrap_key=} {check_tpl_name=} {base_obj=} {update_obj=}",
+                    panel_title=f"ConfigReplacer::get_tpl_value({tpl_name=!s}) BEFORE tpl_name NOT FOUND",
+                )
             raise ConfigError(
-                err_type=TypeError(), err_msg=f"{tpl_name} not found in fabik.toml."
+                err_type=TypeError(), err_msg=f"{tpl_name} not found in fabik config."
             )
 
         # 对于非字典类型，强制不使用合并
@@ -292,34 +249,20 @@ class ConfigReplacer:
         if self.verbose:
             echo_info(
                 f"{tpl_name=} {merge=} {wrap_key=} {base_obj=} {update_obj=}",
-                panel_title="ConfigReplacer::get_tpl_value BEFORE MERGE",
+                panel_title=f"ConfigReplacer::get_tpl_value({tpl_name=!s}) BEFORE MERGE",
             )
         if merge:
             repl_obj = merge_dict(base_obj or {}, update_obj or {})
         else:
             repl_obj = update_obj or base_obj
 
-        return {wrap_key: repl_obj} if wrap_key else repl_obj
+        if self.verbose:
+            echo_info(
+                f"{tpl_name=} {merge=} {wrap_key=} {base_obj=} {update_obj=} {repl_obj=}",
+                panel_title=f"ConfigReplacer::get_tpl_value({tpl_name=!s}) AFTER MERGE",
+            )
 
-    def get_environ(self) -> dict[str, str]:
-        """从系统环境变量和 .env 文件中获取预设变量的值。
-        
-        .env 文件中的变量会覆盖环境变量中的同名值。
-        返回合并后的环境变量字典。
-        """
-        # 从系统环境变量开始
-        env_values = dict(os.environ)
-        
-        # 查找 .env 文件
-        env_file = self.work_dir / ".env"
-        if env_file.exists():
-            # 从 .env 文件读取变量，这些变量会覆盖系统环境变量
-            dotenv_vars = dotenv_values(env_file)
-            # 过滤掉值为 None 的项（dotenv_values 可能返回 None 值）
-            dotenv_vars = {k: v for k, v in dotenv_vars.items() if v is not None}
-            env_values.update(dotenv_vars)
-        
-        return env_values
+        return {wrap_key: repl_obj} if wrap_key else repl_obj
 
     def replace(self, value: str) -> str:
         """替换 value 中的占位符"""
@@ -329,18 +272,24 @@ class ConfigReplacer:
         replace_obj = self._fill_root_meta()
         # 获取环境变量中的替换值
         if self.replace_environ is not None:
-            env_values = self.get_environ()
             for n in self.replace_environ:
                 # FABIK_LOCAL_NAME
-                environ_key = (
-                    f"{self.fabik_name.upper()}_{self.env_name.upper()}_{n}"
-                    if self.env_name
-                    else f"{self.fabik_name.upper()}_{n}"
-                )
-                environ_keys[n] = environ_key
-                environ_value = env_values.get(environ_key)
+                env_var_name = self.fabik_config.get_env_var_name(n)
+                environ_keys[n] = env_var_name
+                environ_value = self.fabik_config.getcfg(env_var_name, data=FABIK_ENV)
+                if self.verbose:
+                    echo_info(
+                        f"""{env_var_name=}\n{environ_value=}""",
+                        panel_title=f"LOG: ConfigReplacer::replace() CURRENT REPLACE_ENVIRON {n=!s}",
+                    )
+
                 if environ_value is not None:
                     replace_obj[n] = environ_value
+        if self.verbose:
+            echo_info(
+                f"""{environ_keys=}\n{replace_obj=}""",
+                panel_title="LOG: ConfigReplacer::replace() AFTER REPLACE_ENVIRON",
+            )
         try:
             if self.verbose:
                 echo_info(
@@ -398,15 +347,22 @@ class ConfigReplacer:
         :param tpl_name: 配置中的根名称，一般情况下是一个表。
         :param output_file: 可选的具体输出文件路径，如果提供则优先使用
         """
+        if self.verbose:
+            echo_info(
+                f"{tpl_name=} {force=!s} {rename=!s} {target_postfix=} {output_file=} {immediately}",
+                panel_title="ConfigReplacer::set_writer() BEFORE",
+            )
         replace_obj = self.get_replace_obj(tpl_name)
-        
+
         if output_file is not None:
             # 使用指定的文件路径
             final_target = output_file
             target = output_file
         else:
             # 使用 output_dir 逻辑
-            output_dir: Path = self.work_dir if self.output_dir is None else self.output_dir
+            output_dir: Path = (
+                self.work_dir if self.output_dir is None else self.output_dir
+            )
             # 不加后缀的文件路径
             target = output_dir.joinpath(tpl_name)
             # 加入后缀的文件路径，大部分情况下与 target 相同
@@ -424,5 +380,3 @@ class ConfigReplacer:
         if immediately:
             self.writer.write_file(force, rename)
         return target, final_target
-
-

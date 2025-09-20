@@ -14,7 +14,6 @@ import jinja2
 
 import fabik
 from fabik import tpl
-from fabik.conf import FabikConfig
 from fabik.conf.storage import FabikConfigFile
 from fabik.error import echo_error, echo_info, echo_warning, FabikError
 from fabik.cmd import global_state, NoteForce
@@ -23,8 +22,8 @@ from fabik.cmd import global_state, NoteForce
 def main_callback(
     ctx: typer.Context,
     env: Annotated[
-        str | None, typer.Option("--env", "-e", help="Environment name.")
-    ] = None,
+        str, typer.Option("--env", "-e", help="Environment name.")
+    ] = "",
     cwd: Annotated[
         Path | None,
         typer.Option(
@@ -55,11 +54,10 @@ def main_callback(
 
     try:
         global_state.verbose = verbose
-        global_state.env = env
+        global_state.env_name = env
         global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(
             work_dir=cwd, config_file=config_file
         )
-        global_state.cwd = global_state.fabik_file.getdir()
     except FabikError as e:
         echo_error(e.err_msg)
         raise typer.Exit()
