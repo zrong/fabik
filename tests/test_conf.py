@@ -16,11 +16,15 @@ class TestConfCommands:
 
     def setup_method(self):
         """每个测试方法前重置 global_state"""
-        global_state.cwd = None
-        global_state.env = None
-        global_state.fabik_file = None
+        # 重置GlobalState的属性，现在很多是只读属性
         global_state.fabik_config = None
         global_state.force = False
+        global_state.rename = False
+        global_state.env_postfix = False
+        global_state.verbose = False
+        global_state.env_name = ""
+        global_state.output_dir = None
+        global_state.output_file = None
         global_state._config_validators = []
 
     def test_conf_tpl_with_valid_files(self, temp_dir, mocker, mock_echo_functions):
@@ -33,9 +37,10 @@ class TestConfCommands:
         test_tpl1.write_text("template content 1")
         test_tpl2.write_text("template content 2")
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "dev"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "dev"
 
         # 模拟 FabikConfig
         mock_fabik_config = MagicMock()
@@ -76,9 +81,10 @@ class TestConfCommands:
         test_tpl = tpl_dir / "config.jinja2"
         test_tpl.write_text("template content")
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "prod"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "prod"
 
         # 模拟 FabikConfig
         mock_fabik_config = MagicMock()
@@ -115,8 +121,9 @@ class TestConfCommands:
         tpl_dir = temp_dir / "tpls"
         tpl_dir.mkdir()
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
 
         # 模拟 FabikConfig
         mock_fabik_config = MagicMock()
@@ -141,8 +148,9 @@ class TestConfCommands:
 
     def test_conf_tpl_validates_tpl_dir(self, temp_dir, mocker, mock_echo_functions):
         """测试 conf_tpl 命令验证 tpl_dir 是否存在"""
-        # 设置 global_state
-        global_state.cwd = temp_dir
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
 
         # 模拟 load_conf_data 方法
         mock_load_conf_data = mocker.patch("fabik.cmd.GlobalState.load_conf_data")
@@ -159,9 +167,10 @@ class TestConfCommands:
 
     def test_conf_make_basic(self, temp_dir, mocker, mock_echo_functions):
         """测试 conf_make 命令基本功能"""
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "dev"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "dev"
 
         # 模拟 load_conf_data 方法
         mock_load_conf_data = mocker.patch("fabik.cmd.GlobalState.load_conf_data")
@@ -182,9 +191,10 @@ class TestConfCommands:
 
     def test_conf_make_with_env_postfix(self, temp_dir, mocker, mock_echo_functions):
         """测试 conf_make 命令使用环境名称后缀"""
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "staging"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "staging"
 
         # 模拟 load_conf_data 方法
         mock_load_conf_data = mocker.patch("fabik.cmd.GlobalState.load_conf_data")
@@ -209,9 +219,10 @@ class TestConfCommands:
         test_tpl = tpl_dir / "test.json.jinja2"
         test_tpl.write_text('{"name": "{{ NAME }}", "env": "{{ ENV }}"}')
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "test"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "test"
 
         # 创建配置数据
         conf_data = {
@@ -260,7 +271,7 @@ class TestConfCommands:
 
         # 验证结果
         mock_config_replacer.assert_called_once_with(
-            conf_data, temp_dir, output_dir=None, tpl_dir=tpl_dir, env_name="test", verbose=False
+            conf_data, temp_dir, output_dir=None, tpl_dir=tpl_dir, verbose=False
         )
         mock_replacer_instance.set_writer.assert_called_once_with(
             "test.json", force=False, rename=False, target_postfix="", immediately=True
@@ -272,11 +283,15 @@ class TestConfCommandsIntegration:
 
     def setup_method(self):
         """每个测试方法前重置 global_state"""
-        global_state.cwd = None
-        global_state.env = None
-        global_state.fabik_file = None
+        # 重置GlobalState的属性，现在很多是只读属性
         global_state.fabik_config = None
         global_state.force = False
+        global_state.rename = False
+        global_state.env_postfix = False
+        global_state.verbose = False
+        global_state.env_name = ""
+        global_state.output_dir = None
+        global_state.output_file = None
         global_state._config_validators = []
 
     def test_conf_tpl_integration(self, temp_dir, mocker):
@@ -322,9 +337,10 @@ work_dir = "{{ WORK_DIR }}"
         mock_fabik_config.root_data = fabik_toml_content
         global_state.fabik_config = mock_fabik_config
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "dev"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "dev"
 
         # 模拟 load_conf_data 方法
         mocker.patch(
@@ -375,9 +391,10 @@ work_dir = "{{ WORK_DIR }}"
         mock_fabik_config.root_data = fabik_toml_content
         global_state.fabik_config = mock_fabik_config
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
-        global_state.env = "prod"
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
+        global_state.env_name = "prod"
 
         # 模拟 load_conf_data 方法
         mocker.patch(
@@ -427,8 +444,9 @@ work_dir = "{{ WORK_DIR }}"
         mock_fabik_config.root_data = fabik_toml_content
         global_state.fabik_config = mock_fabik_config
 
-        # 设置 global_state
-        global_state.cwd = temp_dir
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
 
         # 模拟 load_conf_data 方法
         mocker.patch(
@@ -553,8 +571,9 @@ work_dir = "{{ WORK_DIR }}"
         output_dir.mkdir()
         output_file = temp_dir / "custom_config.json"
         
-        # 设置 global_state
-        global_state.cwd = temp_dir
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
         global_state.output_dir = output_dir
         global_state.output_file = output_file
         
@@ -580,8 +599,9 @@ work_dir = "{{ WORK_DIR }}"
         output_dir = temp_dir / "configs"
         output_dir.mkdir()
         
-        # 设置 global_state  
-        global_state.cwd = temp_dir
+        # 设置 global_state - 使用 FabikConfigFile 来设置工作目录
+        from fabik.conf import FabikConfigFile
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(work_dir=temp_dir)
         global_state.output_dir = output_dir
         global_state.output_file = None
         
