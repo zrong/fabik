@@ -77,10 +77,17 @@ class GlobalState:
 #### `main.py` - 主命令实现
 
 **main_callback**: 主命令回调，处理全局参数
-**main_init**: 项目初始化命令
-- 创建 `fabik.toml` 配置文件
-- 支持完整格式和简化格式
-- 支持强制覆盖现有配置
+- 初始化 FabikConfigFile 对象
+- 设置全局环境变量
+- 处理命令行参数验证
+
+**main_init**: 项目初始化命令 - 双配置文件创建
+- 同时创建 `fabik.toml` 和 `.fabik.env` 配置文件
+- 支持智能覆盖逻辑：
+  - 检查文件存在性
+  - 只对缺失的文件进行创建
+  - 使用 `--force` 可覆盖已存在的文件
+- 使用 Jinja2 模板渲染配置内容
 
 #### `conf.py` - 配置命令实现
 
@@ -110,26 +117,61 @@ class GlobalState:
 **venv_update**: 更新虚拟环境依赖
 **venv_outdated**: 检查过期的包
 
-### 3. 配置管理模块 (`fabik/conf.py`)
+### 3. 配置管理模块 (`fabik/conf/`)
 
-#### FabikConfig 类
+#### 模块重构说明
+配置模块已被重构为子模块，包含：
+- `__init__.py` - 模块入口和导入管理
+- `storage.py` - 配置存储和数据管理
+- `processor.py` - 配置处理和渲染
+
+此外，根目录保留了 `fabik/conf.py` 作为兼容性导入文件。
+
+#### FabikConfig 类 (storage.py)
 
 **核心功能：**
-- TOML 配置文件解析
+- 双配置文件管理（fabik.toml + .fabik.env）
+- 环境变量分类处理（以项目名开头 vs 非项目名开头）
+- 多环境配置支持
 - 配置数据获取和设置
-- 工作目录管理
-- 配置文件存在性检查
+
+**关键属性：**
+```python
+class FabikConfig:
+    __project_name: str          # 项目名称
+    root_data: dict              # 主配置数据
+    env_data: dict               # 环境配置数据
+    env_name: str                # 环境名称
+    envs: dict                   # 多环境配置
+```
 
 **关键方法：**
 ```python
-def load_root_data(self) -> dict[str, Any]        # 加载配置数据
-def merge_root_data(self, data) -> dict           # 合并配置数据
-def getcfg(self, *args, default_value=None)       # 递归获取配置值
-def setcfg(self, *args, value)                    # 递归设置配置值
-def getdir(self, *args, work_dir=None) -> Path    # 获取目录路径
+def _update_root_env_data(self)         # 合并环境配置数据
+def get_env_var_name(self, var_name)    # 生成环境变量名
+def getcfg(self, *args, data=FABIK_DATA) # 递归获取配置值
+def setcfg(self, *args, value, data)    # 递归设置配置值
+def check_env_name(self)                # 验证环境名称
+def get_env_value(self, key)            # 获取环境变量值
 ```
 
-#### ConfigReplacer 类
+#### FabikConfigFile 类 (storage.py)
+
+**核心功能：**
+- 配置文件路径管理
+- 双配置文件存在性检查
+- 工作目录管理
+- 配置文件加载和解析
+
+**关键属性：**
+```python
+class FabikConfigFile:
+    __work_dir: Path            # 工作目录
+    fabik_toml: Path           # TOML配置文件路径
+    fabik_env: Path            # ENV配置文件路径
+```
+
+#### ConfigReplacer 类 (processor.py)
 
 **环境变量替换系统：**
 - 支持 Jinja2 模板语法
@@ -137,13 +179,22 @@ def getdir(self, *args, work_dir=None) -> Path    # 获取目录路径
 - 多层配置合并
 - 路径变量处理
 
+**关键属性：**
+```python
+class ConfigReplacer:
+    fabik_config: FabikConfig   # 配置对象
+    work_dir: Path             # 工作目录
+    deploy_dir: Path           # 部署目录
+    replace_environ: list      # 替换环境变量列表
+```
+
 **替换流程：**
 1. 获取基础配置
 2. 应用环境特定配置
 3. 执行变量替换
 4. 渲染 Jinja2 模板
 
-#### ConfigWriter/TplWriter 类
+#### ConfigWriter/TplWriter 类 (processor.py)
 
 **配置文件写入：**
 - 支持多种格式：TOML、JSON、键值对
@@ -243,8 +294,12 @@ class TplError(FabikError)      # 模板异常
 
 **内置模板：**
 - `FABIK_TOML_TPL`: 主配置文件模板
-- `FABIK_ENV_TPL`:  环境配置文件模板
+- `FABIK_ENV_TPL`: 环境配置文件模板 (.fabik.env)
 - `SYSTEMD_USER_UNIT_SERVICE_TPL`: Systemd 服务模板
+
+**双配置文件架构：**
+- `FABIK_TOML_FILE`: "fabik.toml" - 主配置文件
+- `FABIK_ENV_FILE`: ".fabik.env" - 环境配置文件
 
 #### `log.py` - 日志系统
 
@@ -295,11 +350,15 @@ graph TD
   ↓
 main_init 函数
   ↓  
-检查配置文件存在性
+检查双配置文件存在性
   ↓
-渲染模板生成配置
+渲染模板生成双配置内容
   ↓
-写入 fabik.toml 文件
+智能写入逻辑：
+  - 只创建缺失的文件
+  - 支持 --force 覆盖
+  ↓
+写入 fabik.toml 和 .fabik.env 文件
 ```
 
 #### 2. 配置文件生成流程
