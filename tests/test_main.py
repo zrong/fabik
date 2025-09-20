@@ -21,7 +21,7 @@ class TestMainInit:
         """每个测试方法前重置 global_state"""
         global_state.cwd = None
         global_state.env = None
-        global_state.conf_file = None
+        global_state.fabik_file = None
         global_state.fabik_config = None
 
     def test_init_new_config_file(self, temp_dir, mocker, mock_echo_functions):
@@ -45,9 +45,9 @@ class TestMainInit:
         mock_fabik_config_class = mocker.patch('fabik.cmd.FabikConfig')
         mock_fabik_config_class.gen_fabik_toml.return_value = temp_dir / FABIK_TOML_FILE
         
-        # 创建一个模拟实例，但让 load_root_data 抛出异常
+        # 创建一个模拟实例，但让 load_config 抛出异常
         mock_instance = MagicMock()
-        mock_instance.load_root_data.side_effect = PathError(
+        mock_instance.load_config.side_effect = PathError(
             err_type=FileNotFoundError(), err_msg="File not found"
         )
         mock_fabik_config_class.return_value = mock_instance
@@ -91,9 +91,9 @@ class TestMainInit:
         mock_fabik_config_class = mocker.patch('fabik.cmd.FabikConfig')
         mock_fabik_config_class.gen_fabik_toml.return_value = temp_dir / FABIK_TOML_FILE
         
-        # 创建一个模拟实例，但让 load_root_data 抛出异常
+        # 创建一个模拟实例，但让 load_config 抛出异常
         mock_instance = MagicMock()
-        mock_instance.load_root_data.side_effect = PathError(
+        mock_instance.load_config.side_effect = PathError(
             err_type=FileNotFoundError(), err_msg="File not found"
         )
         mock_fabik_config_class.return_value = mock_instance
@@ -131,7 +131,7 @@ class TestMainInit:
         # 模拟 FabikConfig 的行为
         mock_fabik_config_class = mocker.patch('fabik.cmd.FabikConfig')
         mock_instance = MagicMock()
-        mock_instance.load_root_data.side_effect = PathError(
+        mock_instance.load_config.side_effect = PathError(
             err_type=FileNotFoundError(), err_msg="File not found"
         )
         mock_fabik_config_class.return_value = mock_instance
@@ -168,7 +168,7 @@ class TestMainInit:
         # 模拟 FabikConfig 的行为
         mock_fabik_config_class = mocker.patch('fabik.cmd.FabikConfig')
         mock_instance = MagicMock()
-        mock_instance.load_root_data.side_effect = PathError(
+        mock_instance.load_config.side_effect = PathError(
             err_type=FileNotFoundError(), err_msg="File not found"
         )
         mock_fabik_config_class.return_value = mock_instance

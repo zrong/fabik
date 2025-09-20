@@ -30,8 +30,8 @@ from typing import Annotated
 from fabik.conf import (
     ConfigReplacer,
     FabikConfig,
+    FabikConfigFile,
     config_validator_name_workdir,
-    config_validator_both_files_exist,  # 新增的验证器
     config_validator_tpldir,
 )
 from fabric.connection import Connection
@@ -59,8 +59,8 @@ class GlobalState:
     cwd: Path
     """ 当前工作目录。"""
 
-    conf_file: Path
-    """ fabik 配置文件的绝对路径。"""
+    fabik_file: FabikConfigFile
+    """ fabik 配置文件对象。"""
 
     env: str | None = None
     """ env 环境，默认为空，不指定环境时，会使用 WORK_DIR 中的默认环境。"""
@@ -165,8 +165,7 @@ class GlobalState:
         file_not_found_err_msg: str = 'Please call "fabik init" to generate a "fabik.toml" file.',
     ) -> dict[str, Any]:
         try:
-            self.fabik_config = FabikConfig(self.cwd, cfg=self.conf_file)
-            self.fabik_config.load_root_data()
+            self.fabik_config = self.fabik_file.load_config()
             if check:
                 self._check_conf_data()
             return self.conf_data
@@ -410,7 +409,7 @@ class GlobalState:
         return f"""{self.__class__.__name__}(
     env={self.env}, 
     cwd={self.cwd!s}, 
-    conf_file={self.conf_file!s}, 
+    conf_file={self.fabik_file!s}, 
     force={self.force}, 
     fabik_config={self.fabik_config!s}
 )"""
@@ -452,4 +451,3 @@ NoteOutputFile = Annotated[
 # 创建全局状态实例并注册默认验证器
 global_state = GlobalState()
 global_state.register_config_validator(config_validator_name_workdir)
-global_state.register_config_validator(config_validator_both_files_exist)  # 新增的验证器

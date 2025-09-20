@@ -15,6 +15,7 @@ import jinja2
 import fabik
 from fabik import tpl
 from fabik.conf import FabikConfig
+from fabik.conf.storage import FabikConfigFile
 from fabik.error import echo_error, echo_info, echo_warning, FabikError
 from fabik.cmd import global_state, NoteForce
 
@@ -30,14 +31,14 @@ def main_callback(
             file_okay=False, exists=True, help="Specify the local working directory."
         ),
     ] = None,
-    conf_file: Annotated[
+    config_file: Annotated[
         Path | None,
         typer.Option(
             file_okay=True, exists=True, help="Specify the configuration file."
         ),
     ] = None,
     verbose: Annotated[
-        bool, typer.Option('--verbose', "-v", help="Show more information.")
+        bool, typer.Option("--verbose", "-v", help="Show more information.")
     ] = False,
     version: Annotated[
         bool, typer.Option("--version", is_eager=True, help="Show fabik version.")
@@ -46,21 +47,19 @@ def main_callback(
     if version:
         echo_info(fabik.__version__)
         raise typer.Exit()
-    
-   # 如果没有子命令且没有版本选项，显示帮助
+
+    # 如果没有子命令且没有版本选项，显示帮助
     if ctx.invoked_subcommand is None:
         echo_info(ctx.get_help())
         raise typer.Exit()
-    
+
     try:
         global_state.verbose = verbose
         global_state.env = env
-        global_state.cwd = FabikConfig.gen_work_dir(cwd)
-        global_state.conf_file = (
-            FabikConfig.gen_fabik_toml(work_dir=global_state.cwd, conf_file=None)
-            if conf_file is None
-            else conf_file
+        global_state.fabik_file = FabikConfigFile.gen_fabik_config_file(
+            work_dir=cwd, config_file=config_file
         )
+        global_state.cwd = global_state.fabik_file.getdir()
     except FabikError as e:
         echo_error(e.err_msg)
         raise typer.Exit()
@@ -68,8 +67,9 @@ def main_callback(
     if global_state.verbose:
         echo_info(
             f"{global_state!r}",
-            panel_title="LOG: main_callback",
+            panel_title="main_callback",
         )
+
 
 def main_init(
     full_format: Annotated[
@@ -92,7 +92,7 @@ def main_init(
     # 创建 fabik.toml
     toml_content = jinja2.Template(tpl.FABIK_TOML_TPL).render(**template_vars)
 
-    # 创建 .fabik.env  
+    # 创建 .fabik.env
     env_content = jinja2.Template(tpl.FABIK_ENV_TPL).render(**template_vars)
 
     toml_file = work_dir.joinpath(tpl.FABIK_TOML_FILE)
@@ -114,10 +114,12 @@ def main_init(
         else:
             # 文件不存在，需要创建
             files_to_write.append((file_path, content))
-    
+
     # 如果有已存在的文件但未使用 --force，且没有任何文件需要写入，则提示并退出
     if has_existing_files and not force and not files_to_write:
-        echo_warning("All configuration files already exist. Use --force to overwrite them.")
+        echo_warning(
+            "All configuration files already exist. Use --force to overwrite them."
+        )
         raise typer.Exit()
 
     # 写入需要创建或覆盖的文件

@@ -160,7 +160,7 @@ bind = '127.0.0.1:5000'
         try:
             # 设置测试状态
             global_state.cwd = test_project_dir
-            global_state.conf_file = test_project_dir / "fabik.toml"
+            global_state.fabik_file = test_project_dir / "fabik.toml"
             global_state.env = "local"
             
             # 测试配置加载

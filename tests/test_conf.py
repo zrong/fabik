@@ -18,7 +18,7 @@ class TestConfCommands:
         """每个测试方法前重置 global_state"""
         global_state.cwd = None
         global_state.env = None
-        global_state.conf_file = None
+        global_state.fabik_file = None
         global_state.fabik_config = None
         global_state.force = False
         global_state._config_validators = []
@@ -274,7 +274,7 @@ class TestConfCommandsIntegration:
         """每个测试方法前重置 global_state"""
         global_state.cwd = None
         global_state.env = None
-        global_state.conf_file = None
+        global_state.fabik_file = None
         global_state.fabik_config = None
         global_state.force = False
         global_state._config_validators = []
